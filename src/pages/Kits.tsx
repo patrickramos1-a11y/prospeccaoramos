@@ -130,8 +130,8 @@ export default function Kits() {
     setLoading(false);
   };
 
-  const getItemName = (id: string) => estoqueItens.find(e => e.id === id)?.nome || "—";
-  const getItemCusto = (id: string) => estoqueItens.find(e => e.id === id)?.custo_unitario || 0;
+  const getItemName = (id: string) => selectableItems.find(e => e.id === id)?.nome || estoqueItens.find(e => e.id === id)?.nome || "—";
+  const getItemCusto = (id: string) => selectableItems.find(e => e.id === id)?.custo_unitario || estoqueItens.find(e => e.id === id)?.custo_unitario || 0;
 
   const getKitItens = (kitId: string) => kitItens.filter(ki => ki.kit_id === kitId);
 
