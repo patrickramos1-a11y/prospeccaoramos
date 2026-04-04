@@ -61,6 +61,8 @@ export default function Kits() {
   const [kits, setKits] = useState<Kit[]>([]);
   const [kitItens, setKitItens] = useState<KitItemDB[]>([]);
   const [estoqueItens, setEstoqueItens] = useState<EstoqueItem[]>([]);
+  const [packs, setPacks] = useState<PackItem[]>([]);
+  const [selectableItems, setSelectableItems] = useState<SelectableItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Sheets
