@@ -99,14 +99,34 @@ export default function Kits() {
   }, []);
 
   const fetchAll = async () => {
-    const [kitsRes, kitItensRes, estoqueRes] = await Promise.all([
+    const [kitsRes, kitItensRes, estoqueRes, packsRes] = await Promise.all([
       supabase.from("kits").select("*").order("nome"),
       supabase.from("kit_itens").select("*"),
       supabase.from("estoque_itens").select("id, nome, custo_unitario").order("nome"),
+      supabase.from("packs").select("*").order("nome"),
     ]);
     if (kitsRes.data) setKits(kitsRes.data);
     if (kitItensRes.data) setKitItens(kitItensRes.data);
-    if (estoqueRes.data) setEstoqueItens(estoqueRes.data);
+    const items = estoqueRes.data || [];
+    const packList = packsRes.data || [];
+    setEstoqueItens(items);
+    setPacks(packList);
+
+    // Build selectable list: individual items + packs
+    const selectable: SelectableItem[] = [
+      ...items.map(i => ({ id: i.id, nome: i.nome, custo_unitario: i.custo_unitario, tipo: "item" as const })),
+      ...packList.map(p => {
+        const baseItem = items.find(i => i.id === p.item_id);
+        const custoUnitBase = baseItem?.custo_unitario || 0;
+        return {
+          id: p.id,
+          nome: `📦 ${p.nome} (${p.quantidade}x ${baseItem?.nome || "?"})`,
+          custo_unitario: custoUnitBase * p.quantidade,
+          tipo: "pack" as const,
+        };
+      }),
+    ];
+    setSelectableItems(selectable);
     setLoading(false);
   };
 
