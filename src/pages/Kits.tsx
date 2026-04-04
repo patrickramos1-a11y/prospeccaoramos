@@ -25,6 +25,20 @@ interface EstoqueItem {
   custo_unitario: number;
 }
 
+interface PackItem {
+  id: string;
+  nome: string;
+  item_id: string;
+  quantidade: number;
+}
+
+interface SelectableItem {
+  id: string;
+  nome: string;
+  custo_unitario: number;
+  tipo: "item" | "pack";
+}
+
 interface KitItemDB {
   id: string;
   kit_id: string;
@@ -47,6 +61,8 @@ export default function Kits() {
   const [kits, setKits] = useState<Kit[]>([]);
   const [kitItens, setKitItens] = useState<KitItemDB[]>([]);
   const [estoqueItens, setEstoqueItens] = useState<EstoqueItem[]>([]);
+  const [packs, setPacks] = useState<PackItem[]>([]);
+  const [selectableItems, setSelectableItems] = useState<SelectableItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Sheets
@@ -83,19 +99,39 @@ export default function Kits() {
   }, []);
 
   const fetchAll = async () => {
-    const [kitsRes, kitItensRes, estoqueRes] = await Promise.all([
+    const [kitsRes, kitItensRes, estoqueRes, packsRes] = await Promise.all([
       supabase.from("kits").select("*").order("nome"),
       supabase.from("kit_itens").select("*"),
       supabase.from("estoque_itens").select("id, nome, custo_unitario").order("nome"),
+      supabase.from("packs").select("*").order("nome"),
     ]);
     if (kitsRes.data) setKits(kitsRes.data);
     if (kitItensRes.data) setKitItens(kitItensRes.data);
-    if (estoqueRes.data) setEstoqueItens(estoqueRes.data);
+    const items = estoqueRes.data || [];
+    const packList = packsRes.data || [];
+    setEstoqueItens(items);
+    setPacks(packList);
+
+    // Build selectable list: individual items + packs
+    const selectable: SelectableItem[] = [
+      ...items.map(i => ({ id: i.id, nome: i.nome, custo_unitario: i.custo_unitario, tipo: "item" as const })),
+      ...packList.map(p => {
+        const baseItem = items.find(i => i.id === p.item_id);
+        const custoUnitBase = baseItem?.custo_unitario || 0;
+        return {
+          id: p.id,
+          nome: `📦 ${p.nome} (${p.quantidade}x ${baseItem?.nome || "?"})`,
+          custo_unitario: custoUnitBase * p.quantidade,
+          tipo: "pack" as const,
+        };
+      }),
+    ];
+    setSelectableItems(selectable);
     setLoading(false);
   };
 
-  const getItemName = (id: string) => estoqueItens.find(e => e.id === id)?.nome || "—";
-  const getItemCusto = (id: string) => estoqueItens.find(e => e.id === id)?.custo_unitario || 0;
+  const getItemName = (id: string) => selectableItems.find(e => e.id === id)?.nome || estoqueItens.find(e => e.id === id)?.nome || "—";
+  const getItemCusto = (id: string) => selectableItems.find(e => e.id === id)?.custo_unitario || estoqueItens.find(e => e.id === id)?.custo_unitario || 0;
 
   const getKitItens = (kitId: string) => kitItens.filter(ki => ki.kit_id === kitId);
 
@@ -413,16 +449,16 @@ export default function Kits() {
                 Itens do Kit
               </p>
               <p className="text-[10px] text-muted-foreground">
-                Selecione itens do estoque — não precisa ter saldo, o kit é um modelo.
+                Selecione itens ou packs do estoque — não precisa ter saldo, o kit é um modelo.
               </p>
 
               <div className="space-y-2">
                 <Select value={newItemId} onValueChange={setNewItemId}>
                   <SelectTrigger className="text-xs">
-                    <SelectValue placeholder="Selecione um item do estoque" />
+                    <SelectValue placeholder="Selecione um item ou pack" />
                   </SelectTrigger>
                   <SelectContent>
-                    {estoqueItens.map(e => (
+                    {selectableItems.map(e => (
                       <SelectItem key={e.id} value={e.id} className="text-xs">
                         <span>{e.nome}</span>
                         <span className="text-muted-foreground ml-2">R$ {e.custo_unitario.toFixed(2)}</span>
@@ -493,13 +529,13 @@ export default function Kits() {
           </SheetHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label className="text-xs">Item do Estoque</Label>
+              <Label className="text-xs">Item ou Pack</Label>
               <Select value={addItemId} onValueChange={setAddItemId}>
                 <SelectTrigger className="text-xs">
-                  <SelectValue placeholder="Selecione um item" />
+                  <SelectValue placeholder="Selecione um item ou pack" />
                 </SelectTrigger>
                 <SelectContent>
-                  {estoqueItens.map(e => (
+                  {selectableItems.map(e => (
                     <SelectItem key={e.id} value={e.id} className="text-xs">
                       {e.nome} — R$ {e.custo_unitario.toFixed(2)}
                     </SelectItem>
