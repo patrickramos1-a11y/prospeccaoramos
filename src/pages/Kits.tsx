@@ -449,16 +449,16 @@ export default function Kits() {
                 Itens do Kit
               </p>
               <p className="text-[10px] text-muted-foreground">
-                Selecione itens do estoque — não precisa ter saldo, o kit é um modelo.
+                Selecione itens ou packs do estoque — não precisa ter saldo, o kit é um modelo.
               </p>
 
               <div className="space-y-2">
                 <Select value={newItemId} onValueChange={setNewItemId}>
                   <SelectTrigger className="text-xs">
-                    <SelectValue placeholder="Selecione um item do estoque" />
+                    <SelectValue placeholder="Selecione um item ou pack" />
                   </SelectTrigger>
                   <SelectContent>
-                    {estoqueItens.map(e => (
+                    {selectableItems.map(e => (
                       <SelectItem key={e.id} value={e.id} className="text-xs">
                         <span>{e.nome}</span>
                         <span className="text-muted-foreground ml-2">R$ {e.custo_unitario.toFixed(2)}</span>
