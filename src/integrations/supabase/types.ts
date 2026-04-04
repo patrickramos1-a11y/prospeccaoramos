@@ -14,7 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      estoque_itens: {
+        Row: {
+          categoria: string
+          created_at: string
+          custo_unitario: number
+          fornecedor: string | null
+          id: string
+          ideal: number
+          minimo: number
+          nome: string
+          saldo_atual: number
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          categoria?: string
+          created_at?: string
+          custo_unitario?: number
+          fornecedor?: string | null
+          id?: string
+          ideal?: number
+          minimo?: number
+          nome: string
+          saldo_atual?: number
+          unidade?: string
+          updated_at?: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          custo_unitario?: number
+          fornecedor?: string | null
+          id?: string
+          ideal?: number
+          minimo?: number
+          nome?: string
+          saldo_atual?: number
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      packs: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          id: string
+          item_id: string
+          nome: string
+          quantidade: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          item_id: string
+          nome: string
+          quantidade?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          item_id?: string
+          nome?: string
+          quantidade?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "packs_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
