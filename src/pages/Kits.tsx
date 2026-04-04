@@ -25,6 +25,20 @@ interface EstoqueItem {
   custo_unitario: number;
 }
 
+interface PackItem {
+  id: string;
+  nome: string;
+  item_id: string;
+  quantidade: number;
+}
+
+interface SelectableItem {
+  id: string;
+  nome: string;
+  custo_unitario: number;
+  tipo: "item" | "pack";
+}
+
 interface KitItemDB {
   id: string;
   kit_id: string;
