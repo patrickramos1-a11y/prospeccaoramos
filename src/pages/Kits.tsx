@@ -529,13 +529,13 @@ export default function Kits() {
           </SheetHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label className="text-xs">Item do Estoque</Label>
+              <Label className="text-xs">Item ou Pack</Label>
               <Select value={addItemId} onValueChange={setAddItemId}>
                 <SelectTrigger className="text-xs">
-                  <SelectValue placeholder="Selecione um item" />
+                  <SelectValue placeholder="Selecione um item ou pack" />
                 </SelectTrigger>
                 <SelectContent>
-                  {estoqueItens.map(e => (
+                  {selectableItems.map(e => (
                     <SelectItem key={e.id} value={e.id} className="text-xs">
                       {e.nome} — R$ {e.custo_unitario.toFixed(2)}
                     </SelectItem>
