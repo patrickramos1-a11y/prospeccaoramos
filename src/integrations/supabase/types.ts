@@ -56,6 +56,84 @@ export type Database = {
         }
         Relationships: []
       }
+      kit_itens: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          kit_id: string
+          quantidade: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          kit_id: string
+          quantidade?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          kit_id?: string
+          quantidade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kit_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kit_itens_kit_id_fkey"
+            columns: ["kit_id"]
+            isOneToOne: false
+            referencedRelation: "kits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kits: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string | null
+          disponiveis: number
+          id: string
+          montados: number
+          nome: string
+          tipo: string
+          updated_at: string
+          usados: number
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          disponiveis?: number
+          id?: string
+          montados?: number
+          nome: string
+          tipo?: string
+          updated_at?: string
+          usados?: number
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string | null
+          disponiveis?: number
+          id?: string
+          montados?: number
+          nome?: string
+          tipo?: string
+          updated_at?: string
+          usados?: number
+        }
+        Relationships: []
+      }
       packs: {
         Row: {
           created_at: string
