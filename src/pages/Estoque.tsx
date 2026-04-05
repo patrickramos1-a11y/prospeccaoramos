@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
   Package, Plus, Search, AlertCircle, ArrowDown, ArrowUp,
-  TrendingDown, Boxes, Pencil, Trash2, X, Check, Layers
+  TrendingDown, Boxes, Pencil, Trash2, X, Check, Layers, Image, Upload
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,14 +28,20 @@ interface EstoqueItem {
   ideal: number;
   custo_unitario: number;
   fornecedor: string | null;
+  imagem_url: string | null;
+}
+
+interface PackItem {
+  id: string;
+  item_id: string;
+  quantidade: number;
 }
 
 interface Pack {
   id: string;
-  item_id: string;
   nome: string;
   descricao: string | null;
-  quantidade: number;
+  itens: PackItem[];
 }
 
 const CATEGORIAS = ["Impresso", "Brinde", "Embalagem", "Papelaria"];
@@ -63,47 +69,49 @@ export default function Estoque() {
     nome: "", categoria: "", unidade: "unidade", saldo_atual: 0,
     minimo: 0, ideal: 0, custo_unitario: 0, fornecedor: "",
   });
+  const [newItemImage, setNewItemImage] = useState<File | null>(null);
 
   // Edit form
   const [editForm, setEditForm] = useState({
     nome: "", categoria: "", unidade: "", saldo_atual: 0,
     minimo: 0, ideal: 0, custo_unitario: 0, fornecedor: "",
   });
+  const [editImage, setEditImage] = useState<File | null>(null);
 
   // Pack form
-  const [packForm, setPackForm] = useState({
-    item_id: "", nome: "", descricao: "", quantidade: 1,
-  });
+  const [packForm, setPackForm] = useState({ nome: "", descricao: "" });
+  const [packItensForm, setPackItensForm] = useState<{ item_id: string; quantidade: number }[]>([]);
+  const [packNewItemId, setPackNewItemId] = useState("");
+  const [packNewItemQtd, setPackNewItemQtd] = useState(1);
 
-  // Load data
   useEffect(() => {
-    fetchItens();
-    fetchPacks();
+    fetchAll();
   }, []);
 
-  const fetchItens = async () => {
-    const { data, error } = await supabase.from("estoque_itens").select("*").order("nome");
-    if (error) {
-      toast({ title: "Erro ao carregar itens", description: error.message, variant: "destructive" });
-    } else {
-      setItens(data || []);
-    }
+  const fetchAll = async () => {
+    const [itensRes, packsRes, packItensRes] = await Promise.all([
+      supabase.from("estoque_itens").select("*").order("nome"),
+      supabase.from("packs").select("*").order("nome"),
+      supabase.from("pack_itens").select("*"),
+    ]);
+    if (itensRes.data) setItens(itensRes.data);
+
+    const packList = packsRes.data || [];
+    const packItensList = packItensRes.data || [];
+    const packsWithItens: Pack[] = packList.map(p => ({
+      ...p,
+      itens: packItensList.filter(pi => pi.pack_id === p.id),
+    }));
+    setPacks(packsWithItens);
     setLoading(false);
   };
 
-  const fetchPacks = async () => {
-    const { data, error } = await supabase.from("packs").select("*").order("nome");
-    if (!error) setPacks(data || []);
-  };
-
   const categorias = ["todas", ...Array.from(new Set(itens.map((i) => i.categoria)))];
-
   const filtered = itens.filter((item) => {
     const matchSearch = item.nome.toLowerCase().includes(search.toLowerCase());
     const matchCat = categoriaFilter === "todas" || item.categoria === categoriaFilter;
     return matchSearch && matchCat;
   });
-
   const filteredPacks = packs.filter(p => p.nome.toLowerCase().includes(search.toLowerCase()));
 
   const totalItens = itens.length;
@@ -117,25 +125,46 @@ export default function Estoque() {
     return { label: "OK", color: "text-status-visited bg-status-visited/10", barColor: "bg-status-visited" };
   };
 
+  const getItemName = (id: string) => itens.find(i => i.id === id)?.nome || "—";
+
+  // Image upload helper
+  const uploadImage = async (file: File): Promise<string | null> => {
+    const ext = file.name.split('.').pop();
+    const fileName = `${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from("item-images").upload(fileName, file);
+    if (error) {
+      toast({ title: "Erro ao enviar imagem", description: error.message, variant: "destructive" });
+      return null;
+    }
+    const { data: urlData } = supabase.storage.from("item-images").getPublicUrl(fileName);
+    return urlData.publicUrl;
+  };
+
   // CRUD handlers
   const handleCreateItem = async () => {
     if (!newItem.nome.trim() || !newItem.categoria) {
       toast({ title: "Preencha nome e categoria", variant: "destructive" });
       return;
     }
+    let imagem_url: string | null = null;
+    if (newItemImage) {
+      imagem_url = await uploadImage(newItemImage);
+    }
     const { error } = await supabase.from("estoque_itens").insert({
       nome: newItem.nome, categoria: newItem.categoria, unidade: newItem.unidade,
       saldo_atual: newItem.saldo_atual, minimo: newItem.minimo, ideal: newItem.ideal,
       custo_unitario: newItem.custo_unitario, fornecedor: newItem.fornecedor || null,
+      imagem_url,
     });
     if (error) {
       toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
       return;
     }
     setNewItem({ nome: "", categoria: "", unidade: "unidade", saldo_atual: 0, minimo: 0, ideal: 0, custo_unitario: 0, fornecedor: "" });
+    setNewItemImage(null);
     setShowNewItem(false);
     toast({ title: "Item cadastrado!" });
-    fetchItens();
+    fetchAll();
   };
 
   const openEdit = (item: EstoqueItem) => {
@@ -144,15 +173,21 @@ export default function Estoque() {
       saldo_atual: item.saldo_atual, minimo: item.minimo, ideal: item.ideal,
       custo_unitario: item.custo_unitario, fornecedor: item.fornecedor || "",
     });
+    setEditImage(null);
     setEditingItem(item);
   };
 
   const handleSaveEdit = async () => {
     if (!editingItem) return;
+    let imagem_url = editingItem.imagem_url;
+    if (editImage) {
+      imagem_url = await uploadImage(editImage);
+    }
     const { error } = await supabase.from("estoque_itens").update({
       nome: editForm.nome, categoria: editForm.categoria, unidade: editForm.unidade,
       saldo_atual: editForm.saldo_atual, minimo: editForm.minimo, ideal: editForm.ideal,
       custo_unitario: editForm.custo_unitario, fornecedor: editForm.fornecedor || null,
+      imagem_url,
     }).eq("id", editingItem.id);
     if (error) {
       toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
@@ -160,18 +195,13 @@ export default function Estoque() {
     }
     setEditingItem(null);
     toast({ title: "Item atualizado!" });
-    fetchItens();
+    fetchAll();
   };
 
   const handleDelete = async (id: string) => {
-    const { error } = await supabase.from("estoque_itens").delete().eq("id", id);
-    if (error) {
-      toast({ title: "Erro ao remover", description: error.message, variant: "destructive" });
-      return;
-    }
+    await supabase.from("estoque_itens").delete().eq("id", id);
     toast({ title: "Item removido do estoque" });
-    fetchItens();
-    fetchPacks();
+    fetchAll();
   };
 
   const openEntrada = (id: string) => { setMovItemId(id); setMovQtd(0); setShowEntrada(true); };
@@ -182,7 +212,7 @@ export default function Estoque() {
     const item = itens.find(i => i.id === movItemId);
     if (!item) return;
     const { error } = await supabase.from("estoque_itens").update({ saldo_atual: item.saldo_atual + movQtd }).eq("id", movItemId);
-    if (!error) { setShowEntrada(false); toast({ title: `+${movQtd} unidades registradas` }); fetchItens(); }
+    if (!error) { setShowEntrada(false); toast({ title: `+${movQtd} unidades registradas` }); fetchAll(); }
   };
 
   const handleSaida = async () => {
@@ -190,50 +220,71 @@ export default function Estoque() {
     const item = itens.find(i => i.id === movItemId);
     if (!item) return;
     const { error } = await supabase.from("estoque_itens").update({ saldo_atual: Math.max(0, item.saldo_atual - movQtd) }).eq("id", movItemId);
-    if (!error) { setShowSaida(false); toast({ title: `-${movQtd} unidades registradas` }); fetchItens(); }
+    if (!error) { setShowSaida(false); toast({ title: `-${movQtd} unidades registradas` }); fetchAll(); }
   };
 
   // Pack CRUD
   const handleCreatePack = async () => {
-    if (!packForm.item_id || !packForm.nome.trim() || packForm.quantidade < 1) {
-      toast({ title: "Preencha todos os campos do pack", variant: "destructive" });
+    if (!packForm.nome.trim() || packItensForm.length === 0) {
+      toast({ title: "Preencha o nome e adicione pelo menos um item", variant: "destructive" });
       return;
     }
-    const { error } = await supabase.from("packs").insert({
-      item_id: packForm.item_id, nome: packForm.nome,
-      descricao: packForm.descricao || null, quantidade: packForm.quantidade,
-    });
-    if (error) {
-      toast({ title: "Erro ao criar pack", description: error.message, variant: "destructive" });
+    const { data, error } = await supabase.from("packs").insert({
+      nome: packForm.nome, descricao: packForm.descricao || null,
+    }).select().single();
+    if (error || !data) {
+      toast({ title: "Erro ao criar pack", description: error?.message, variant: "destructive" });
       return;
     }
-    setPackForm({ item_id: "", nome: "", descricao: "", quantidade: 1 });
+    const inserts = packItensForm.map(pi => ({ pack_id: data.id, item_id: pi.item_id, quantidade: pi.quantidade }));
+    await supabase.from("pack_itens").insert(inserts);
+    setPackForm({ nome: "", descricao: "" });
+    setPackItensForm([]);
     setShowNewPack(false);
     toast({ title: "Pack criado!" });
-    fetchPacks();
+    fetchAll();
   };
 
   const handleSavePack = async () => {
     if (!editingPack) return;
-    const { error } = await supabase.from("packs").update({
+    await supabase.from("packs").update({
       nome: packForm.nome, descricao: packForm.descricao || null,
-      quantidade: packForm.quantidade, item_id: packForm.item_id,
     }).eq("id", editingPack.id);
-    if (!error) { setEditingPack(null); toast({ title: "Pack atualizado!" }); fetchPacks(); }
+    // Replace pack items
+    await supabase.from("pack_itens").delete().eq("pack_id", editingPack.id);
+    if (packItensForm.length > 0) {
+      const inserts = packItensForm.map(pi => ({ pack_id: editingPack.id, item_id: pi.item_id, quantidade: pi.quantidade }));
+      await supabase.from("pack_itens").insert(inserts);
+    }
+    setEditingPack(null);
+    toast({ title: "Pack atualizado!" });
+    fetchAll();
   };
 
   const handleDeletePack = async (id: string) => {
-    const { error } = await supabase.from("packs").delete().eq("id", id);
-    if (!error) { toast({ title: "Pack removido" }); fetchPacks(); }
+    await supabase.from("packs").delete().eq("id", id);
+    toast({ title: "Pack removido" });
+    fetchAll();
   };
 
   const openEditPack = (pack: Pack) => {
-    setPackForm({ item_id: pack.item_id, nome: pack.nome, descricao: pack.descricao || "", quantidade: pack.quantidade });
+    setPackForm({ nome: pack.nome, descricao: pack.descricao || "" });
+    setPackItensForm(pack.itens.map(pi => ({ item_id: pi.item_id, quantidade: pi.quantidade })));
     setEditingPack(pack);
   };
 
+  const handleAddPackItem = () => {
+    if (!packNewItemId) return;
+    if (packItensForm.some(i => i.item_id === packNewItemId)) {
+      toast({ title: "Item já adicionado", variant: "destructive" });
+      return;
+    }
+    setPackItensForm(prev => [...prev, { item_id: packNewItemId, quantidade: packNewItemQtd }]);
+    setPackNewItemId("");
+    setPackNewItemQtd(1);
+  };
+
   const movItem = itens.find(i => i.id === movItemId);
-  const getItemName = (id: string) => itens.find(i => i.id === id)?.nome || "—";
 
   if (loading) {
     return (
@@ -242,6 +293,71 @@ export default function Estoque() {
       </div>
     );
   }
+
+  const ImageInput = ({ file, onChange, currentUrl }: { file: File | null; onChange: (f: File | null) => void; currentUrl?: string | null }) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs">Imagem</Label>
+      <div className="flex items-center gap-3">
+        {(currentUrl || file) && (
+          <div className="w-12 h-12 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+            <img
+              src={file ? URL.createObjectURL(file) : currentUrl!}
+              alt="Preview"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+        <label className="flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-border cursor-pointer hover:bg-muted/50 transition-colors text-xs text-muted-foreground">
+          <Upload className="w-3.5 h-3.5" />
+          {file ? file.name : "Enviar foto"}
+          <input type="file" accept="image/*" className="hidden" onChange={e => onChange(e.target.files?.[0] || null)} />
+        </label>
+      </div>
+    </div>
+  );
+
+  const PackItemsEditor = () => (
+    <div className="border border-border rounded-xl p-3 space-y-3">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Itens do Pack</p>
+      <div className="space-y-2">
+        <Select value={packNewItemId} onValueChange={setPackNewItemId}>
+          <SelectTrigger className="text-xs"><SelectValue placeholder="Selecione um item" /></SelectTrigger>
+          <SelectContent>
+            {itens.map(i => (
+              <SelectItem key={i.id} value={i.id} className="text-xs">{i.nome}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <Label className="text-[10px] text-muted-foreground">Quantidade</Label>
+            <Input type="number" min={1} value={packNewItemQtd} onChange={e => setPackNewItemQtd(Math.max(1, Number(e.target.value)))} />
+          </div>
+          <div className="flex items-end">
+            <Button onClick={handleAddPackItem} disabled={!packNewItemId} size="sm">
+              <Plus className="w-3.5 h-3.5 mr-1" /> Add
+            </Button>
+          </div>
+        </div>
+      </div>
+      {packItensForm.length > 0 ? (
+        <div className="space-y-1.5">
+          {packItensForm.map(pi => (
+            <div key={pi.item_id} className="flex items-center gap-2 text-xs bg-muted/50 p-2.5 rounded-lg">
+              <Package className="w-3 h-3 text-muted-foreground flex-shrink-0" />
+              <span className="flex-1 truncate">{getItemName(pi.item_id)}</span>
+              <span className="font-semibold text-muted-foreground">×{pi.quantidade}</span>
+              <button onClick={() => setPackItensForm(prev => prev.filter(x => x.item_id !== pi.item_id))} className="text-destructive/60 hover:text-destructive">
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs text-muted-foreground italic text-center py-3">Nenhum item adicionado</p>
+      )}
+    </div>
+  );
 
   return (
     <div className="p-4 space-y-4 animate-fade-in pb-24">
@@ -252,16 +368,10 @@ export default function Estoque() {
 
       {/* Tabs */}
       <div className="flex gap-1 bg-muted p-1 rounded-lg">
-        <button
-          className={cn("flex-1 text-xs font-medium py-2 rounded-md transition-colors", activeTab === "itens" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")}
-          onClick={() => setActiveTab("itens")}
-        >
+        <button className={cn("flex-1 text-xs font-medium py-2 rounded-md transition-colors", activeTab === "itens" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")} onClick={() => setActiveTab("itens")}>
           <Package className="w-3.5 h-3.5 inline mr-1" /> Itens ({itens.length})
         </button>
-        <button
-          className={cn("flex-1 text-xs font-medium py-2 rounded-md transition-colors", activeTab === "packs" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")}
-          onClick={() => setActiveTab("packs")}
-        >
+        <button className={cn("flex-1 text-xs font-medium py-2 rounded-md transition-colors", activeTab === "packs" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")} onClick={() => setActiveTab("packs")}>
           <Layers className="w-3.5 h-3.5 inline mr-1" /> Packs ({packs.length})
         </button>
       </div>
@@ -278,7 +388,7 @@ export default function Estoque() {
             </Button>
           </>
         ) : (
-          <Button size="sm" className="flex-1 text-xs" onClick={() => { setPackForm({ item_id: "", nome: "", descricao: "", quantidade: 1 }); setShowNewPack(true); }}>
+          <Button size="sm" className="flex-1 text-xs" onClick={() => { setPackForm({ nome: "", descricao: "" }); setPackItensForm([]); setPackNewItemId(""); setShowNewPack(true); }}>
             <Plus className="w-3.5 h-3.5 mr-1" /> Novo Pack
           </Button>
         )}
@@ -288,31 +398,16 @@ export default function Estoque() {
       {activeTab === "itens" && (
         <div className="grid grid-cols-3 gap-2">
           <div className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-card">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Boxes className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <p className="font-bold text-lg text-foreground leading-none">{totalItens}</p>
-              <p className="text-[9px] text-muted-foreground mt-0.5">Tipos</p>
-            </div>
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center"><Boxes className="w-4 h-4 text-primary" /></div>
+            <div><p className="font-bold text-lg text-foreground leading-none">{totalItens}</p><p className="text-[9px] text-muted-foreground mt-0.5">Tipos</p></div>
           </div>
           <div className={cn("flex items-center gap-2 p-2.5 rounded-xl border bg-card", alertaCount > 0 ? "border-destructive/30" : "border-border")}>
-            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", alertaCount > 0 ? "bg-destructive/10" : "bg-muted")}>
-              <AlertCircle className={cn("w-4 h-4", alertaCount > 0 ? "text-destructive" : "text-muted-foreground")} />
-            </div>
-            <div>
-              <p className={cn("font-bold text-lg leading-none", alertaCount > 0 ? "text-destructive" : "text-foreground")}>{alertaCount}</p>
-              <p className="text-[9px] text-muted-foreground mt-0.5">Alertas</p>
-            </div>
+            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", alertaCount > 0 ? "bg-destructive/10" : "bg-muted")}><AlertCircle className={cn("w-4 h-4", alertaCount > 0 ? "text-destructive" : "text-muted-foreground")} /></div>
+            <div><p className={cn("font-bold text-lg leading-none", alertaCount > 0 ? "text-destructive" : "text-foreground")}>{alertaCount}</p><p className="text-[9px] text-muted-foreground mt-0.5">Alertas</p></div>
           </div>
           <div className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-card">
-            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center">
-              <TrendingDown className="w-4 h-4 text-accent-foreground" />
-            </div>
-            <div>
-              <p className="font-bold text-base text-foreground leading-none">R${valorTotal.toFixed(0)}</p>
-              <p className="text-[9px] text-muted-foreground mt-0.5">Valor</p>
-            </div>
+            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center"><TrendingDown className="w-4 h-4 text-accent-foreground" /></div>
+            <div><p className="font-bold text-base text-foreground leading-none">R${valorTotal.toFixed(0)}</p><p className="text-[9px] text-muted-foreground mt-0.5">Valor</p></div>
           </div>
         </div>
       )}
@@ -326,9 +421,7 @@ export default function Estoque() {
         {activeTab === "itens" && (
           <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
             <SelectTrigger className="h-9 text-xs w-28"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {categorias.map((c) => (<SelectItem key={c} value={c} className="text-xs capitalize">{c === "todas" ? "Todas" : c}</SelectItem>))}
-            </SelectContent>
+            <SelectContent>{categorias.map((c) => (<SelectItem key={c} value={c} className="text-xs capitalize">{c === "todas" ? "Todas" : c}</SelectItem>))}</SelectContent>
           </Select>
         )}
       </div>
@@ -339,14 +432,19 @@ export default function Estoque() {
           {filtered.map((item) => {
             const st = getEstoqueStatus(item);
             const pct = item.ideal > 0 ? Math.min((item.saldo_atual / item.ideal) * 100, 100) : 0;
-            const itemPacks = packs.filter(p => p.item_id === item.id);
             return (
               <Card key={item.id} className="shadow-sm border-border/60">
                 <CardContent className="p-3">
                   <div className="flex items-start gap-3">
-                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Package className="w-4 h-4 text-muted-foreground" />
-                    </div>
+                    {item.imagem_url ? (
+                      <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 mt-0.5">
+                        <img src={item.imagem_url} alt={item.nome} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <Package className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
@@ -364,34 +462,16 @@ export default function Estoque() {
                         <span className="text-xs font-bold text-foreground">{item.saldo_atual}</span>
                         <span className="text-[10px] text-muted-foreground">/ {item.ideal}</span>
                       </div>
-                      {/* Packs badges */}
-                      {itemPacks.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {itemPacks.map(p => (
-                            <Badge key={p.id} variant="outline" className="text-[9px] px-1.5 bg-primary/5">
-                              <Layers className="w-2.5 h-2.5 mr-0.5" /> {p.nome} (×{p.quantidade})
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
                       <div className="flex items-center justify-between mt-2">
                         <div className="flex gap-1">
                           <Badge variant="outline" className="text-[9px] px-1.5">{item.categoria}</Badge>
                           <span className="text-[10px] text-muted-foreground">R$ {item.custo_unitario.toFixed(2)}/{item.unidade}</span>
                         </div>
                         <div className="flex gap-0.5">
-                          <button onClick={() => openEntrada(item.id)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-status-visited" title="Entrada">
-                            <ArrowDown className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => openSaida(item.id)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-accent-foreground" title="Saída">
-                            <ArrowUp className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => openEdit(item)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground" title="Editar">
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button onClick={() => handleDelete(item.id)} className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors text-destructive/60" title="Excluir">
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <button onClick={() => openEntrada(item.id)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-status-visited" title="Entrada"><ArrowDown className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => openSaida(item.id)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-accent-foreground" title="Saída"><ArrowUp className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => openEdit(item)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
+                          <button onClick={() => handleDelete(item.id)} className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors text-destructive/60" title="Excluir"><Trash2 className="w-3.5 h-3.5" /></button>
                         </div>
                       </div>
                     </div>
@@ -426,18 +506,20 @@ export default function Estoque() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <p className="font-medium text-sm text-foreground truncate">{pack.nome}</p>
-                        <p className="text-[10px] text-muted-foreground">{getItemName(pack.item_id)}</p>
+                        <p className="text-[10px] text-muted-foreground">{pack.itens.length} itens</p>
                       </div>
-                      <Badge variant="secondary" className="text-[10px] font-bold">×{pack.quantidade}</Badge>
                     </div>
                     {pack.descricao && <p className="text-[11px] text-muted-foreground mt-1">{pack.descricao}</p>}
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {pack.itens.map(pi => (
+                        <Badge key={pi.id} variant="outline" className="text-[9px] px-1.5 bg-primary/5">
+                          {getItemName(pi.item_id)} ×{pi.quantidade}
+                        </Badge>
+                      ))}
+                    </div>
                     <div className="flex items-center justify-end gap-0.5 mt-2">
-                      <button onClick={() => openEditPack(pack)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground">
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button onClick={() => handleDeletePack(pack.id)} className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors text-destructive/60">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <button onClick={() => openEditPack(pack)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground"><Pencil className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => handleDeletePack(pack.id)} className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors text-destructive/60"><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </div>
                 </div>
@@ -448,8 +530,8 @@ export default function Estoque() {
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Layers className="w-10 h-10 mb-3 opacity-30" />
               <p className="text-sm">Nenhum pack cadastrado</p>
-              <p className="text-xs mt-1">Packs são conjuntos de itens, ex: "Pack 10 Cartões"</p>
-              <Button size="sm" variant="outline" className="mt-3" onClick={() => { setPackForm({ item_id: "", nome: "", descricao: "", quantidade: 1 }); setShowNewPack(true); }}>
+              <p className="text-xs mt-1">Packs agrupam múltiplos itens diferentes</p>
+              <Button size="sm" variant="outline" className="mt-3" onClick={() => { setPackForm({ nome: "", descricao: "" }); setPackItensForm([]); setShowNewPack(true); }}>
                 <Plus className="w-3.5 h-3.5 mr-1" /> Criar primeiro pack
               </Button>
             </div>
@@ -466,6 +548,7 @@ export default function Estoque() {
               <Label className="text-xs">Nome do item *</Label>
               <Input placeholder="Ex: Caneta Personalizada" value={newItem.nome} onChange={e => setNewItem(p => ({ ...p, nome: e.target.value }))} />
             </div>
+            <ImageInput file={newItemImage} onChange={setNewItemImage} />
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Categoria *</Label>
@@ -487,28 +570,13 @@ export default function Estoque() {
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Saldo atual</Label>
-                <Input type="number" min={0} value={newItem.saldo_atual} onChange={e => setNewItem(p => ({ ...p, saldo_atual: Number(e.target.value) }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Mínimo</Label>
-                <Input type="number" min={0} value={newItem.minimo} onChange={e => setNewItem(p => ({ ...p, minimo: Number(e.target.value) }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Ideal</Label>
-                <Input type="number" min={0} value={newItem.ideal} onChange={e => setNewItem(p => ({ ...p, ideal: Number(e.target.value) }))} />
-              </div>
+              <div className="space-y-1.5"><Label className="text-xs">Saldo atual</Label><Input type="number" min={0} value={newItem.saldo_atual} onChange={e => setNewItem(p => ({ ...p, saldo_atual: Number(e.target.value) }))} /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Mínimo</Label><Input type="number" min={0} value={newItem.minimo} onChange={e => setNewItem(p => ({ ...p, minimo: Number(e.target.value) }))} /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Ideal</Label><Input type="number" min={0} value={newItem.ideal} onChange={e => setNewItem(p => ({ ...p, ideal: Number(e.target.value) }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Custo unitário (R$)</Label>
-                <Input type="number" min={0} step={0.01} value={newItem.custo_unitario} onChange={e => setNewItem(p => ({ ...p, custo_unitario: Number(e.target.value) }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Fornecedor</Label>
-                <Input placeholder="Ex: Gráfica Central" value={newItem.fornecedor} onChange={e => setNewItem(p => ({ ...p, fornecedor: e.target.value }))} />
-              </div>
+              <div className="space-y-1.5"><Label className="text-xs">Custo unitário (R$)</Label><Input type="number" min={0} step={0.01} value={newItem.custo_unitario} onChange={e => setNewItem(p => ({ ...p, custo_unitario: Number(e.target.value) }))} /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Fornecedor</Label><Input placeholder="Ex: Gráfica Central" value={newItem.fornecedor} onChange={e => setNewItem(p => ({ ...p, fornecedor: e.target.value }))} /></div>
             </div>
           </div>
           <SheetFooter className="gap-2">
@@ -523,10 +591,8 @@ export default function Estoque() {
         <SheetContent side="bottom" className="h-[85vh] overflow-y-auto rounded-t-2xl">
           <SheetHeader><SheetTitle className="font-display text-lg">Editar Item</SheetTitle></SheetHeader>
           <div className="space-y-3 py-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Nome</Label>
-              <Input value={editForm.nome} onChange={e => setEditForm(p => ({ ...p, nome: e.target.value }))} />
-            </div>
+            <div className="space-y-1.5"><Label className="text-xs">Nome</Label><Input value={editForm.nome} onChange={e => setEditForm(p => ({ ...p, nome: e.target.value }))} /></div>
+            <ImageInput file={editImage} onChange={setEditImage} currentUrl={editingItem?.imagem_url} />
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-xs">Categoria</Label>
@@ -548,28 +614,13 @@ export default function Estoque() {
               </div>
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Saldo</Label>
-                <Input type="number" min={0} value={editForm.saldo_atual} onChange={e => setEditForm(p => ({ ...p, saldo_atual: Number(e.target.value) }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Mínimo</Label>
-                <Input type="number" min={0} value={editForm.minimo} onChange={e => setEditForm(p => ({ ...p, minimo: Number(e.target.value) }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Ideal</Label>
-                <Input type="number" min={0} value={editForm.ideal} onChange={e => setEditForm(p => ({ ...p, ideal: Number(e.target.value) }))} />
-              </div>
+              <div className="space-y-1.5"><Label className="text-xs">Saldo</Label><Input type="number" min={0} value={editForm.saldo_atual} onChange={e => setEditForm(p => ({ ...p, saldo_atual: Number(e.target.value) }))} /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Mínimo</Label><Input type="number" min={0} value={editForm.minimo} onChange={e => setEditForm(p => ({ ...p, minimo: Number(e.target.value) }))} /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Ideal</Label><Input type="number" min={0} value={editForm.ideal} onChange={e => setEditForm(p => ({ ...p, ideal: Number(e.target.value) }))} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Custo unit. (R$)</Label>
-                <Input type="number" min={0} step={0.01} value={editForm.custo_unitario} onChange={e => setEditForm(p => ({ ...p, custo_unitario: Number(e.target.value) }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Fornecedor</Label>
-                <Input value={editForm.fornecedor} onChange={e => setEditForm(p => ({ ...p, fornecedor: e.target.value }))} />
-              </div>
+              <div className="space-y-1.5"><Label className="text-xs">Custo unit. (R$)</Label><Input type="number" min={0} step={0.01} value={editForm.custo_unitario} onChange={e => setEditForm(p => ({ ...p, custo_unitario: Number(e.target.value) }))} /></div>
+              <div className="space-y-1.5"><Label className="text-xs">Fornecedor</Label><Input value={editForm.fornecedor} onChange={e => setEditForm(p => ({ ...p, fornecedor: e.target.value }))} /></div>
             </div>
           </div>
           <SheetFooter className="gap-2">
@@ -584,7 +635,7 @@ export default function Estoque() {
         <SheetContent side="bottom" className="rounded-t-2xl">
           <SheetHeader><SheetTitle className="font-display text-lg">Registrar Entrada</SheetTitle></SheetHeader>
           <div className="space-y-4 py-4">
-            {activeTab === "itens" && itens.length > 1 && (
+            {itens.length > 1 && (
               <div className="space-y-2">
                 <Label className="text-xs">Selecione o item</Label>
                 <Select value={movItemId || ""} onValueChange={setMovItemId}>
@@ -636,28 +687,18 @@ export default function Estoque() {
 
       {/* Sheet: Novo Pack */}
       <Sheet open={showNewPack} onOpenChange={setShowNewPack}>
-        <SheetContent side="bottom" className="h-[75vh] overflow-y-auto rounded-t-2xl">
+        <SheetContent side="bottom" className="h-[85vh] overflow-y-auto rounded-t-2xl">
           <SheetHeader><SheetTitle className="font-display text-lg">Criar Novo Pack</SheetTitle></SheetHeader>
           <div className="space-y-3 py-4">
             <div className="space-y-1.5">
               <Label className="text-xs">Nome do pack *</Label>
-              <Input placeholder="Ex: Pack 10 Cartões" value={packForm.nome} onChange={e => setPackForm(p => ({ ...p, nome: e.target.value }))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Item vinculado *</Label>
-              <Select value={packForm.item_id} onValueChange={v => setPackForm(p => ({ ...p, item_id: v }))}>
-                <SelectTrigger className="text-xs"><SelectValue placeholder="Selecione um item do estoque" /></SelectTrigger>
-                <SelectContent>{itens.map(i => (<SelectItem key={i.id} value={i.id} className="text-xs">{i.nome}</SelectItem>))}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Quantidade no pack *</Label>
-              <Input type="number" min={1} value={packForm.quantidade} onChange={e => setPackForm(p => ({ ...p, quantidade: Math.max(1, Number(e.target.value)) }))} />
+              <Input placeholder="Ex: Pack de Folders" value={packForm.nome} onChange={e => setPackForm(p => ({ ...p, nome: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Descrição</Label>
-              <Input placeholder="Ex: Conjunto de 10 cartões para visita" value={packForm.descricao} onChange={e => setPackForm(p => ({ ...p, descricao: e.target.value }))} />
+              <Input placeholder="Ex: Conjunto de folders para visita técnica" value={packForm.descricao} onChange={e => setPackForm(p => ({ ...p, descricao: e.target.value }))} />
             </div>
+            <PackItemsEditor />
           </div>
           <SheetFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowNewPack(false)} className="flex-1">Cancelar</Button>
@@ -668,28 +709,12 @@ export default function Estoque() {
 
       {/* Sheet: Editar Pack */}
       <Sheet open={!!editingPack} onOpenChange={(open) => !open && setEditingPack(null)}>
-        <SheetContent side="bottom" className="h-[75vh] overflow-y-auto rounded-t-2xl">
+        <SheetContent side="bottom" className="h-[85vh] overflow-y-auto rounded-t-2xl">
           <SheetHeader><SheetTitle className="font-display text-lg">Editar Pack</SheetTitle></SheetHeader>
           <div className="space-y-3 py-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Nome</Label>
-              <Input value={packForm.nome} onChange={e => setPackForm(p => ({ ...p, nome: e.target.value }))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Item vinculado</Label>
-              <Select value={packForm.item_id} onValueChange={v => setPackForm(p => ({ ...p, item_id: v }))}>
-                <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent>{itens.map(i => (<SelectItem key={i.id} value={i.id} className="text-xs">{i.nome}</SelectItem>))}</SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Quantidade</Label>
-              <Input type="number" min={1} value={packForm.quantidade} onChange={e => setPackForm(p => ({ ...p, quantidade: Math.max(1, Number(e.target.value)) }))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Descrição</Label>
-              <Input value={packForm.descricao} onChange={e => setPackForm(p => ({ ...p, descricao: e.target.value }))} />
-            </div>
+            <div className="space-y-1.5"><Label className="text-xs">Nome</Label><Input value={packForm.nome} onChange={e => setPackForm(p => ({ ...p, nome: e.target.value }))} /></div>
+            <div className="space-y-1.5"><Label className="text-xs">Descrição</Label><Input value={packForm.descricao} onChange={e => setPackForm(p => ({ ...p, descricao: e.target.value }))} /></div>
+            <PackItemsEditor />
           </div>
           <SheetFooter className="gap-2">
             <Button variant="outline" onClick={() => setEditingPack(null)} className="flex-1">Cancelar</Button>
