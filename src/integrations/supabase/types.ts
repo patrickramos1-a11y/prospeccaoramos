@@ -22,6 +22,7 @@ export type Database = {
           fornecedor: string | null
           id: string
           ideal: number
+          imagem_url: string | null
           minimo: number
           nome: string
           saldo_atual: number
@@ -35,6 +36,7 @@ export type Database = {
           fornecedor?: string | null
           id?: string
           ideal?: number
+          imagem_url?: string | null
           minimo?: number
           nome: string
           saldo_atual?: number
@@ -48,6 +50,7 @@ export type Database = {
           fornecedor?: string | null
           id?: string
           ideal?: number
+          imagem_url?: string | null
           minimo?: number
           nome?: string
           saldo_atual?: number
@@ -61,6 +64,7 @@ export type Database = {
           created_at: string
           id: string
           item_id: string
+          item_type: string
           kit_id: string
           quantidade: number
         }
@@ -68,6 +72,7 @@ export type Database = {
           created_at?: string
           id?: string
           item_id: string
+          item_type?: string
           kit_id: string
           quantidade?: number
         }
@@ -75,17 +80,11 @@ export type Database = {
           created_at?: string
           id?: string
           item_id?: string
+          item_type?: string
           kit_id?: string
           quantidade?: number
         }
         Relationships: [
-          {
-            foreignKeyName: "kit_itens_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "estoque_itens"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "kit_itens_kit_id_fkey"
             columns: ["kit_id"]
@@ -134,43 +133,68 @@ export type Database = {
         }
         Relationships: []
       }
+      pack_itens: {
+        Row: {
+          created_at: string
+          id: string
+          item_id: string
+          pack_id: string
+          quantidade: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_id: string
+          pack_id: string
+          quantidade?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_id?: string
+          pack_id?: string
+          quantidade?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pack_itens_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pack_itens_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       packs: {
         Row: {
           created_at: string
           descricao: string | null
           id: string
-          item_id: string
           nome: string
-          quantidade: number
           updated_at: string
         }
         Insert: {
           created_at?: string
           descricao?: string | null
           id?: string
-          item_id: string
           nome: string
-          quantidade?: number
           updated_at?: string
         }
         Update: {
           created_at?: string
           descricao?: string | null
           id?: string
-          item_id?: string
           nome?: string
-          quantidade?: number
           updated_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "packs_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "estoque_itens"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Views: {
