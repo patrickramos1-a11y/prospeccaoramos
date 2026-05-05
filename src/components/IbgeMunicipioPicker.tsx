@@ -173,10 +173,15 @@ export function IbgeMunicipioPicker({ value, onChange }: Props) {
               )}
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-            <Command>
+          <PopoverContent
+            className="w-[--radix-popover-trigger-width] p-0"
+            align="start"
+            side="bottom"
+            avoidCollisions={false}
+          >
+            <Command shouldFilter>
               <CommandInput placeholder="Digite para filtrar..." />
-              <CommandList className="max-h-[280px] overflow-y-auto">
+              <CommandList className="max-h-[260px] overflow-y-auto overscroll-contain">
                 <CommandEmpty>
                   {municipiosError ? "Erro ao buscar municípios. Tente novamente." : "Nenhum município encontrado."}
                 </CommandEmpty>
