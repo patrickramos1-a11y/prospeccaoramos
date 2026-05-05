@@ -228,7 +228,7 @@ export default function Municipios() {
             </div>
             <Button
               size="sm"
-              onClick={() => { setForm(emptyForm); setSheetOpen(true); }}
+              onClick={() => { setEditingId(null); setForm(emptyForm); setSheetOpen(true); }}
               className="h-8 text-xs"
             >
               <Plus className="w-3.5 h-3.5" />
