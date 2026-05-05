@@ -343,7 +343,11 @@ export default function Municipios() {
               ← Voltar
             </button>
             <h2 className="font-display font-bold text-lg text-foreground flex-1">{selectedM.nome}</h2>
-            <button className="text-xs flex items-center gap-1 text-primary font-medium hover:underline">
+            <button
+              type="button"
+              onClick={() => openEdit(selectedM)}
+              className="text-xs flex items-center gap-1 text-primary font-medium hover:underline"
+            >
               Editar <ArrowUpRight className="w-3 h-3" />
             </button>
           </div>
