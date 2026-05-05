@@ -65,6 +65,7 @@ async function fetchMunicipios(uf: string): Promise<Municipio[]> {
 export function IbgeMunicipioPicker({ value, onChange }: Props) {
   const [uf, setUf] = useState<string>(value?.estado ?? "");
   const [open, setOpen] = useState(false);
+  const [ufOpen, setUfOpen] = useState(false);
 
   useEffect(() => {
     if (value?.estado) setUf(value.estado);
@@ -80,6 +81,7 @@ export function IbgeMunicipioPicker({ value, onChange }: Props) {
   const handleUfChange = (newUf: string) => {
     setUf(newUf);
     onChange(null);
+    setUfOpen(false);
   };
 
   const handleSelect = (m: Municipio) => {
@@ -92,22 +94,54 @@ export function IbgeMunicipioPicker({ value, onChange }: Props) {
     setOpen(false);
   };
 
+  const selectedEstado = ESTADOS_BR.find((e) => e.sigla === uf);
+
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
         <Label className="text-xs">Estado (UF)</Label>
-        <Select value={uf} onValueChange={handleUfChange}>
-          <SelectTrigger className="h-10">
-            <SelectValue placeholder="Selecione o estado" />
-          </SelectTrigger>
-          <SelectContent className="max-h-72">
-            {ESTADOS_BR.map((e) => (
-              <SelectItem key={e.sigla} value={e.sigla}>
-                {e.nome} ({e.sigla})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover open={ufOpen} onOpenChange={setUfOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              role="combobox"
+              className="w-full justify-between h-10 font-normal"
+            >
+              {selectedEstado ? (
+                <span>{selectedEstado.nome} ({selectedEstado.sigla})</span>
+              ) : (
+                <span className="text-muted-foreground">Selecione o estado</span>
+              )}
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Buscar estado..." />
+              <CommandList>
+                <CommandEmpty>Nenhum estado encontrado.</CommandEmpty>
+                <CommandGroup>
+                  {ESTADOS_BR.map((e) => (
+                    <CommandItem
+                      key={e.sigla}
+                      value={`${e.nome} ${e.sigla}`}
+                      onSelect={() => handleUfChange(e.sigla)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          uf === e.sigla ? "opacity-100" : "opacity-0",
+                        )}
+                      />
+                      {e.nome} ({e.sigla})
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
       </div>
 
       <div className="space-y-1.5">
