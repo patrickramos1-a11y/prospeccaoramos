@@ -181,7 +181,7 @@ export function IbgeMunicipioPicker({ value, onChange }: Props) {
           >
             <Command shouldFilter>
               <CommandInput placeholder="Digite para filtrar..." />
-              <CommandList className="max-h-[260px] overflow-y-auto overscroll-contain">
+              <CommandList className="max-h-[260px] min-h-0 overflow-y-auto overscroll-contain">
                 <CommandEmpty>
                   {municipiosError ? "Erro ao buscar municípios. Tente novamente." : "Nenhum município encontrado."}
                 </CommandEmpty>
