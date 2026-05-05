@@ -88,6 +88,7 @@ export default function Municipios() {
   const [prioridadeFilter, setPrioridadeFilter] = useState("todas");
   const [selected, setSelected] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
 
   const { data: municipios = [], isLoading } = useQuery({
