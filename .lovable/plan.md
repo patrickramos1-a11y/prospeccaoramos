@@ -1,45 +1,39 @@
-## Objetivo
+Vou corrigir isso de forma definitiva, porque o problema não é só “altura máxima”: o `Command/cmdk` está dentro de um `Popover` e de um `Sheet`, e o scroll com roda/touchpad/dedo está ficando preso ou direcionado para o contêiner errado. Por isso a rolagem automática ao clicar no botão do meio funciona, mas a rolagem comum não.
 
-Hoje o botão "Novo" da página de Municípios não tem ação — é só um `<button>` decorativo, e a lista vem de mock estático (`MUNICIPIOS` em `src/data/mockData.ts`). Vou ativar o cadastro real, salvar no banco e adicionar um seletor inteligente de Estado (UF) e Município que consulta a API pública do IBGE (sem precisar de chave).
+Plano de implementação:
 
-## O que será entregue
+1. Corrigir o seletor de Estado
+   - Aplicar a mesma estrutura de scroll dedicada usada no município.
+   - Definir altura máxima explícita para a lista.
+   - Garantir `overflow-y-auto`, `overscroll-contain`, `min-h-0` e comportamento de toque/roda adequado.
+   - Adicionar espaço interno à direita para a barra de rolagem não cobrir texto.
 
-1. **Tabela `municipios` no banco** com persistência real (substitui o mock nesta página).
-2. **Botão "Novo" funcional** abrindo um formulário (Sheet/bottom sheet, padrão já usado em Kits/Estoque).
-3. **Seletor de Estado (UF)** — dropdown carregado da API do IBGE com os 27 estados.
-4. **Seletor de Município com busca** — após escolher a UF, carrega todos os municípios reais daquele estado da API do IBGE; campo com busca por nome (Combobox), evitando erros de digitação.
-5. **Auto-preenchimento** de `regiao` (microrregião IBGE) e `estado` quando o município é escolhido.
-6. **Campos editáveis no cadastro**: prioridade (alta/média/baixa), responsável, status inicial (default "não iniciado"), e os 4 critérios de score (Abertura, Potencial, Relacionamento, Facilidade — 0 a 5 cada) com cálculo automático do score total.
-7. **Lista e ficha de detalhe** passam a ler do banco; contadores de contatos/documentos/custo continuam vindo dos mocks por enquanto (próximo passo seria conectá-los também).
+2. Corrigir o seletor de Município
+   - Substituir a dependência de rolagem implícita do `CommandList` por um contêiner de lista realmente rolável.
+   - Garantir que a rolagem com roda do mouse, touchpad e dedo funcione dentro do popover.
+   - Limitar a altura do dropdown sem cortar os itens.
+   - Manter busca, destaque, seleção e exibição da microrregião.
 
-## Detalhes técnicos
+3. Evitar conflito entre o Sheet e os Popovers
+   - Ajustar o conteúdo do popover para não deixar o evento de rolagem “escapar” para o painel lateral.
+   - Manter o popover dentro da área visível e com altura adequada ao viewport.
+   - Usar `side="bottom"`, largura do gatilho e regras de overflow consistentes nos dois campos.
 
-**Migração SQL** — criar `public.municipios`:
-- `id uuid pk default gen_random_uuid()`
-- `nome text not null`, `estado text not null`, `regiao text`
-- `ibge_codigo text` (código do município no IBGE, útil para deduplicar)
-- `status text default 'não iniciado'`, `prioridade text default 'média'`
-- `responsavel text`
-- `score int default 0`, `abertura int default 0`, `potencial int default 0`, `relacionamento int default 0`, `facilidade int default 0`
-- `ultima_visita date`, `has_cliente boolean default false`
-- `created_at`, `updated_at` timestamps + trigger de updated_at
-- RLS habilitado com policy permissiva (mesmo padrão das tabelas existentes do projeto)
-- Índice único em `ibge_codigo` para evitar cadastrar o mesmo município duas vezes
+4. Tornar a barra de rolagem visível e usável
+   - Aumentar a largura visual da scrollbar nesses dropdowns, se necessário, porque a scrollbar global atual tem só 5px e fica quase imperceptível.
+   - Aplicar isso apenas nesse seletor, sem alterar todos os scrolls do app.
 
-**Frontend (`src/pages/Municipios.tsx`)**:
-- Substituir `MUNICIPIOS` mock por `useQuery` no Supabase (`from('municipios').select('*')`).
-- Adicionar `Sheet` com formulário de cadastro disparado pelo botão "Novo".
-- Validação com `zod` (nome obrigatório, estado obrigatório, scores 0-5).
-- Mutação de insert com toast de sucesso/erro e invalidação da query.
+5. Validar no preview
+   - Abrir `/municipios`, abrir o cadastro, abrir Estado e Município.
+   - Testar rolagem comum com roda/touchpad no dropdown.
+   - Testar muitos resultados em um estado grande.
+   - Confirmar que ainda é possível pesquisar e selecionar normalmente.
 
-**Integração IBGE** (API pública, sem chave):
-- Estados: `https://servicosdados.ibge.gov.br/api/v1/localidades/estados?orderBy=nome`
-- Municípios da UF: `https://servicosdados.ibge.gov.br/api/v1/localidades/estados/{UF}/municipios`
-- Resposta inclui microrregião, que será usada para preencher `regiao` automaticamente.
-- Resultados cacheados via React Query (estados raramente mudam; municípios por UF).
-- Componente `Combobox` (cmdk + Popover, já disponível em `command.tsx`/`popover.tsx`) para busca rápida entre os 5.500+ municípios.
+Arquivos esperados:
+- `src/components/IbgeMunicipioPicker.tsx`
+- Possivelmente `src/index.css` apenas se for necessário criar uma classe específica de scrollbar visível para esses dropdowns.
 
-**Fora do escopo deste passo** (posso fazer em seguida se quiser):
-- Migrar contatos/visitas/documentos para usar `municipio_id` real da nova tabela.
-- Edição/exclusão de municípios cadastrados.
-- Importar os 12 municípios de exemplo do mock como seed inicial.
+Resultado esperado:
+- Estado deve permitir rolar até todos os 27 estados sem precisar pesquisar.
+- Município deve permitir rolar por todos os municípios do estado selecionado sem precisar pesquisar.
+- A rolagem comum deve funcionar, não apenas a rolagem automática do clique no scroll do mouse.
