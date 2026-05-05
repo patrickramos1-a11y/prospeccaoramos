@@ -15,23 +15,61 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 
-const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/municipios", label: "Municípios", icon: MapPin, badge: "12" },
-  { to: "/visitas", label: "Visitas", icon: CalendarCheck, badge: "3" },
-  { to: "/contatos", label: "Contatos", icon: Users },
-  { to: "/estoque", label: "Estoque", icon: Package, alert: true },
-  { to: "/kits", label: "Kits", icon: Gift },
-  { to: "/inteligencia", label: "Inteligência", icon: BarChart3 },
-  { to: "/financeiro", label: "Financeiro", icon: DollarSign },
-];
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  end?: boolean;
+  badge?: string | number;
+  alert?: boolean;
+};
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+
+  const { data: municipiosCount = 0 } = useQuery({
+    queryKey: ["sidebar", "municipios-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("municipios")
+        .select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+    staleTime: 30_000,
+  });
+
+  const { data: estoqueAlerta = false } = useQuery({
+    queryKey: ["sidebar", "estoque-alerta"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("estoque_itens")
+        .select("saldo_atual, minimo")
+        .limit(1000);
+      if (error) throw error;
+      return (data ?? []).some(
+        (i: { saldo_atual: number | null; minimo: number | null }) =>
+          (i.saldo_atual ?? 0) <= (i.minimo ?? 0),
+      );
+    },
+    staleTime: 30_000,
+  });
+
+  const navItems: NavItem[] = [
+    { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+    { to: "/municipios", label: "Municípios", icon: MapPin, badge: municipiosCount || undefined },
+    { to: "/visitas", label: "Visitas", icon: CalendarCheck },
+    { to: "/contatos", label: "Contatos", icon: Users },
+    { to: "/estoque", label: "Estoque", icon: Package, alert: estoqueAlerta },
+    { to: "/kits", label: "Kits", icon: Gift },
+    { to: "/inteligencia", label: "Inteligência", icon: BarChart3 },
+    { to: "/financeiro", label: "Financeiro", icon: DollarSign },
+  ];
 
   const currentTitle = navItems.find(
     (n) => n.end ? location.pathname === n.to : location.pathname.startsWith(n.to)
