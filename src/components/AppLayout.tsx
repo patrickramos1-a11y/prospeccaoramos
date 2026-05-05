@@ -49,12 +49,12 @@ export default function AppLayout() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("estoque_itens")
-        .select("quantidade, estoque_minimo")
+        .select("saldo_atual, minimo")
         .limit(1000);
       if (error) throw error;
       return (data ?? []).some(
-        (i: { quantidade: number | null; estoque_minimo: number | null }) =>
-          (i.quantidade ?? 0) <= (i.estoque_minimo ?? 0),
+        (i: { saldo_atual: number | null; minimo: number | null }) =>
+          (i.saldo_atual ?? 0) <= (i.minimo ?? 0),
       );
     },
     staleTime: 30_000,
