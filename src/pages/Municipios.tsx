@@ -141,6 +141,62 @@ export default function Municipios() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, state }: { id: string; state: FormState }) => {
+      const parsed = formSchema.safeParse(state);
+      if (!parsed.success) {
+        throw new Error(parsed.error.issues[0]?.message ?? "Dados inválidos");
+      }
+      const { ibge, ...rest } = parsed.data;
+      const score = rest.abertura + rest.potencial + rest.relacionamento + rest.facilidade;
+      const { error } = await supabase.from("municipios").update({
+        nome: ibge.nome,
+        estado: ibge.estado,
+        regiao: ibge.regiao,
+        ibge_codigo: ibge.ibge_codigo,
+        status: rest.status,
+        prioridade: rest.prioridade,
+        responsavel: rest.responsavel || null,
+        abertura: rest.abertura,
+        potencial: rest.potencial,
+        relacionamento: rest.relacionamento,
+        facilidade: rest.facilidade,
+        score,
+      }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Município atualizado", description: "Alterações salvas com sucesso." });
+      qc.invalidateQueries({ queryKey: ["municipios"] });
+      setSheetOpen(false);
+      setEditingId(null);
+      setForm(emptyForm);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro ao atualizar", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const openEdit = (m: MunicipioRow) => {
+    setEditingId(m.id);
+    setForm({
+      ibge: {
+        nome: m.nome,
+        estado: m.estado,
+        regiao: m.regiao ?? "",
+        ibge_codigo: m.ibge_codigo ?? "",
+      },
+      status: m.status,
+      prioridade: m.prioridade,
+      responsavel: m.responsavel ?? "",
+      abertura: m.abertura,
+      potencial: m.potencial,
+      relacionamento: m.relacionamento,
+      facilidade: m.facilidade,
+    });
+    setSheetOpen(true);
+  };
+
   const filtered = useMemo(() => {
     return municipios.filter((m) => {
       const matchSearch =
