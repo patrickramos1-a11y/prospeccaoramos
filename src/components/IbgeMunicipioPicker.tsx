@@ -70,12 +70,6 @@ export function IbgeMunicipioPicker({ value, onChange }: Props) {
     if (value?.estado) setUf(value.estado);
   }, [value?.estado]);
 
-  const { data: estados = [], isLoading: loadingEstados } = useQuery({
-    queryKey: ["ibge-estados"],
-    queryFn: fetchEstados,
-    staleTime: 1000 * 60 * 60 * 24,
-  });
-
   const { data: municipios = [], isLoading: loadingMunicipios } = useQuery({
     queryKey: ["ibge-municipios", uf],
     queryFn: () => fetchMunicipios(uf),
@@ -102,13 +96,13 @@ export function IbgeMunicipioPicker({ value, onChange }: Props) {
     <div className="space-y-3">
       <div className="space-y-1.5">
         <Label className="text-xs">Estado (UF)</Label>
-        <Select value={uf} onValueChange={handleUfChange} disabled={loadingEstados}>
+        <Select value={uf} onValueChange={handleUfChange}>
           <SelectTrigger className="h-10">
-            <SelectValue placeholder={loadingEstados ? "Carregando estados..." : "Selecione o estado"} />
+            <SelectValue placeholder="Selecione o estado" />
           </SelectTrigger>
           <SelectContent className="max-h-72">
-            {estados.map((e) => (
-              <SelectItem key={e.id} value={e.sigla}>
+            {ESTADOS_BR.map((e) => (
+              <SelectItem key={e.sigla} value={e.sigla}>
                 {e.nome} ({e.sigla})
               </SelectItem>
             ))}
