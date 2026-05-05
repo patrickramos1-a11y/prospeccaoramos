@@ -88,6 +88,7 @@ export default function Municipios() {
   const [prioridadeFilter, setPrioridadeFilter] = useState("todas");
   const [selected, setSelected] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
 
   const { data: municipios = [], isLoading } = useQuery({
@@ -140,6 +141,62 @@ export default function Municipios() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, state }: { id: string; state: FormState }) => {
+      const parsed = formSchema.safeParse(state);
+      if (!parsed.success) {
+        throw new Error(parsed.error.issues[0]?.message ?? "Dados inválidos");
+      }
+      const { ibge, ...rest } = parsed.data;
+      const score = rest.abertura + rest.potencial + rest.relacionamento + rest.facilidade;
+      const { error } = await supabase.from("municipios").update({
+        nome: ibge.nome,
+        estado: ibge.estado,
+        regiao: ibge.regiao,
+        ibge_codigo: ibge.ibge_codigo,
+        status: rest.status,
+        prioridade: rest.prioridade,
+        responsavel: rest.responsavel || null,
+        abertura: rest.abertura,
+        potencial: rest.potencial,
+        relacionamento: rest.relacionamento,
+        facilidade: rest.facilidade,
+        score,
+      }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Município atualizado", description: "Alterações salvas com sucesso." });
+      qc.invalidateQueries({ queryKey: ["municipios"] });
+      setSheetOpen(false);
+      setEditingId(null);
+      setForm(emptyForm);
+    },
+    onError: (err: Error) => {
+      toast({ title: "Erro ao atualizar", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const openEdit = (m: MunicipioRow) => {
+    setEditingId(m.id);
+    setForm({
+      ibge: {
+        nome: m.nome,
+        estado: m.estado,
+        regiao: m.regiao ?? "",
+        ibge_codigo: m.ibge_codigo ?? "",
+      },
+      status: m.status,
+      prioridade: m.prioridade,
+      responsavel: m.responsavel ?? "",
+      abertura: m.abertura,
+      potencial: m.potencial,
+      relacionamento: m.relacionamento,
+      facilidade: m.facilidade,
+    });
+    setSheetOpen(true);
+  };
+
   const filtered = useMemo(() => {
     return municipios.filter((m) => {
       const matchSearch =
@@ -171,7 +228,7 @@ export default function Municipios() {
             </div>
             <Button
               size="sm"
-              onClick={() => { setForm(emptyForm); setSheetOpen(true); }}
+              onClick={() => { setEditingId(null); setForm(emptyForm); setSheetOpen(true); }}
               className="h-8 text-xs"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -286,7 +343,11 @@ export default function Municipios() {
               ← Voltar
             </button>
             <h2 className="font-display font-bold text-lg text-foreground flex-1">{selectedM.nome}</h2>
-            <button className="text-xs flex items-center gap-1 text-primary font-medium hover:underline">
+            <button
+              type="button"
+              onClick={() => openEdit(selectedM)}
+              className="text-xs flex items-center gap-1 text-primary font-medium hover:underline"
+            >
               Editar <ArrowUpRight className="w-3 h-3" />
             </button>
           </div>
@@ -380,12 +441,23 @@ export default function Municipios() {
       )}
 
       {/* Cadastro */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      <Sheet
+        open={sheetOpen}
+        onOpenChange={(open) => {
+          setSheetOpen(open);
+          if (!open) {
+            setEditingId(null);
+            setForm(emptyForm);
+          }
+        }}
+      >
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Cadastrar Município</SheetTitle>
+            <SheetTitle>{editingId ? "Editar Município" : "Cadastrar Município"}</SheetTitle>
             <SheetDescription>
-              Selecione o estado e busque o município pela base oficial do IBGE.
+              {editingId
+                ? "Atualize os dados do município selecionado."
+                : "Selecione o estado e busque o município pela base oficial do IBGE."}
             </SheetDescription>
           </SheetHeader>
 
@@ -469,11 +541,17 @@ export default function Municipios() {
           <SheetFooter className="gap-2">
             <Button variant="outline" onClick={() => setSheetOpen(false)}>Cancelar</Button>
             <Button
-              onClick={() => createMutation.mutate(form)}
-              disabled={!form.ibge || createMutation.isPending}
+              onClick={() =>
+                editingId
+                  ? updateMutation.mutate({ id: editingId, state: form })
+                  : createMutation.mutate(form)
+              }
+              disabled={!form.ibge || createMutation.isPending || updateMutation.isPending}
             >
-              {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Cadastrar
+              {(createMutation.isPending || updateMutation.isPending) && (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              )}
+              {editingId ? "Salvar alterações" : "Cadastrar"}
             </Button>
           </SheetFooter>
         </SheetContent>
