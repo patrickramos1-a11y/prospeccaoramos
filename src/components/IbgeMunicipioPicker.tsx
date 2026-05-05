@@ -49,7 +49,7 @@ async function fetchMunicipios(uf: string): Promise<Municipio[]> {
   const timeout = setTimeout(() => controller.abort(), 15000);
   try {
     const res = await fetch(
-      `https://servicosdados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`,
+      `https://servicodados.ibge.gov.br/api/v1/localidades/estados/${uf}/municipios`,
       { signal: controller.signal },
     );
     if (!res.ok) throw new Error("Falha ao carregar municípios");
@@ -68,11 +68,12 @@ export function IbgeMunicipioPicker({ value, onChange }: Props) {
     if (value?.estado) setUf(value.estado);
   }, [value?.estado]);
 
-  const { data: municipios = [], isLoading: loadingMunicipios } = useQuery({
+  const { data: municipios = [], isLoading: loadingMunicipios, isError: municipiosError } = useQuery({
     queryKey: ["ibge-municipios", uf],
     queryFn: () => fetchMunicipios(uf),
     enabled: !!uf,
     staleTime: 1000 * 60 * 60 * 24,
+    retry: 1,
   });
 
   const handleUfChange = (newUf: string) => {
@@ -160,7 +161,9 @@ export function IbgeMunicipioPicker({ value, onChange }: Props) {
                     ? "Escolha um estado primeiro"
                     : loadingMunicipios
                       ? "Carregando municípios..."
-                      : "Buscar município..."}
+                      : municipiosError
+                        ? "Não foi possível carregar"
+                        : "Buscar município..."}
                 </span>
               )}
               {loadingMunicipios ? (
@@ -174,7 +177,9 @@ export function IbgeMunicipioPicker({ value, onChange }: Props) {
             <Command>
               <CommandInput placeholder="Digite para filtrar..." />
               <CommandList>
-                <CommandEmpty>Nenhum município encontrado.</CommandEmpty>
+                <CommandEmpty>
+                  {municipiosError ? "Erro ao buscar municípios. Tente novamente." : "Nenhum município encontrado."}
+                </CommandEmpty>
                 <CommandGroup>
                   {municipios.map((m) => (
                     <CommandItem
