@@ -541,11 +541,17 @@ export default function Municipios() {
           <SheetFooter className="gap-2">
             <Button variant="outline" onClick={() => setSheetOpen(false)}>Cancelar</Button>
             <Button
-              onClick={() => createMutation.mutate(form)}
-              disabled={!form.ibge || createMutation.isPending}
+              onClick={() =>
+                editingId
+                  ? updateMutation.mutate({ id: editingId, state: form })
+                  : createMutation.mutate(form)
+              }
+              disabled={!form.ibge || createMutation.isPending || updateMutation.isPending}
             >
-              {createMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              Cadastrar
+              {(createMutation.isPending || updateMutation.isPending) && (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              )}
+              {editingId ? "Salvar alterações" : "Cadastrar"}
             </Button>
           </SheetFooter>
         </SheetContent>
