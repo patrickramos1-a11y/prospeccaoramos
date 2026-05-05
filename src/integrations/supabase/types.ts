@@ -133,6 +133,66 @@ export type Database = {
         }
         Relationships: []
       }
+      municipios: {
+        Row: {
+          abertura: number
+          created_at: string
+          estado: string
+          facilidade: number
+          has_cliente: boolean
+          ibge_codigo: string | null
+          id: string
+          nome: string
+          potencial: number
+          prioridade: string
+          regiao: string | null
+          relacionamento: number
+          responsavel: string | null
+          score: number
+          status: string
+          ultima_visita: string | null
+          updated_at: string
+        }
+        Insert: {
+          abertura?: number
+          created_at?: string
+          estado: string
+          facilidade?: number
+          has_cliente?: boolean
+          ibge_codigo?: string | null
+          id?: string
+          nome: string
+          potencial?: number
+          prioridade?: string
+          regiao?: string | null
+          relacionamento?: number
+          responsavel?: string | null
+          score?: number
+          status?: string
+          ultima_visita?: string | null
+          updated_at?: string
+        }
+        Update: {
+          abertura?: number
+          created_at?: string
+          estado?: string
+          facilidade?: number
+          has_cliente?: boolean
+          ibge_codigo?: string | null
+          id?: string
+          nome?: string
+          potencial?: number
+          prioridade?: string
+          regiao?: string | null
+          relacionamento?: number
+          responsavel?: string | null
+          score?: number
+          status?: string
+          ultima_visita?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       pack_itens: {
         Row: {
           created_at: string
