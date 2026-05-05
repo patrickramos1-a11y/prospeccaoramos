@@ -441,12 +441,23 @@ export default function Municipios() {
       )}
 
       {/* Cadastro */}
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      <Sheet
+        open={sheetOpen}
+        onOpenChange={(open) => {
+          setSheetOpen(open);
+          if (!open) {
+            setEditingId(null);
+            setForm(emptyForm);
+          }
+        }}
+      >
         <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle>Cadastrar Município</SheetTitle>
+            <SheetTitle>{editingId ? "Editar Município" : "Cadastrar Município"}</SheetTitle>
             <SheetDescription>
-              Selecione o estado e busque o município pela base oficial do IBGE.
+              {editingId
+                ? "Atualize os dados do município selecionado."
+                : "Selecione o estado e busque o município pela base oficial do IBGE."}
             </SheetDescription>
           </SheetHeader>
 
