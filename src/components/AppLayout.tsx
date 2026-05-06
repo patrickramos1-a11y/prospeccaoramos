@@ -203,12 +203,6 @@ export default function AppLayout() {
             <ChevronRight className="hidden sm:block w-3.5 h-3.5" />
             <span className="text-foreground font-semibold font-display">{currentTitle}</span>
           </div>
-          <div className="ml-auto flex items-center gap-3">
-            <button className="relative text-muted-foreground hover:text-foreground transition-colors">
-              <Bell className="w-4.5 h-4.5" />
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-destructive rounded-full" />
-            </button>
-          </div>
         </header>
 
         {/* Page content */}
