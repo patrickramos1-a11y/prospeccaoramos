@@ -12,7 +12,6 @@ import {
   Leaf,
   Menu,
   X,
-  Bell,
   ChevronRight,
 } from "lucide-react";
 import { useState } from "react";
