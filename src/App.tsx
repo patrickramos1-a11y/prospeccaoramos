@@ -8,6 +8,7 @@ import Dashboard from "./pages/Dashboard";
 import Municipios from "./pages/Municipios";
 import Visitas from "./pages/Visitas";
 import Contatos from "./pages/Contatos";
+import Orgaos from "./pages/Orgaos";
 import Estoque from "./pages/Estoque";
 import Kits from "./pages/Kits";
 import Inteligencia from "./pages/Inteligencia";
@@ -28,6 +29,7 @@ const App = () => (
             <Route path="/municipios" element={<Municipios />} />
             <Route path="/visitas" element={<Visitas />} />
             <Route path="/contatos" element={<Contatos />} />
+            <Route path="/orgaos" element={<Orgaos />} />
             <Route path="/estoque" element={<Estoque />} />
             <Route path="/kits" element={<Kits />} />
             <Route path="/inteligencia" element={<Inteligencia />} />

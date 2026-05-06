@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      contatos: {
+        Row: {
+          cargo: string
+          created_at: string
+          email: string
+          id: string
+          municipio_id: string | null
+          nivel: string
+          nome: string
+          observacoes: string
+          telefone: string
+          updated_at: string
+          whatsapp: boolean
+        }
+        Insert: {
+          cargo?: string
+          created_at?: string
+          email?: string
+          id?: string
+          municipio_id?: string | null
+          nivel?: string
+          nome: string
+          observacoes?: string
+          telefone?: string
+          updated_at?: string
+          whatsapp?: boolean
+        }
+        Update: {
+          cargo?: string
+          created_at?: string
+          email?: string
+          id?: string
+          municipio_id?: string | null
+          nivel?: string
+          nome?: string
+          observacoes?: string
+          telefone?: string
+          updated_at?: string
+          whatsapp?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contatos_municipio_id_fkey"
+            columns: ["municipio_id"]
+            isOneToOne: false
+            referencedRelation: "municipios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estoque_itens: {
         Row: {
           categoria: string
@@ -192,6 +242,98 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      orgao_contatos: {
+        Row: {
+          contato_id: string
+          created_at: string
+          id: string
+          orgao_id: string
+          papel: string
+        }
+        Insert: {
+          contato_id: string
+          created_at?: string
+          id?: string
+          orgao_id: string
+          papel?: string
+        }
+        Update: {
+          contato_id?: string
+          created_at?: string
+          id?: string
+          orgao_id?: string
+          papel?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orgao_contatos_contato_id_fkey"
+            columns: ["contato_id"]
+            isOneToOne: false
+            referencedRelation: "contatos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orgao_contatos_orgao_id_fkey"
+            columns: ["orgao_id"]
+            isOneToOne: false
+            referencedRelation: "orgaos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      orgaos: {
+        Row: {
+          created_at: string
+          email: string
+          endereco: string
+          estado: string
+          id: string
+          municipio_id: string | null
+          nome: string
+          observacoes: string
+          sigla: string
+          telefone: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string
+          endereco?: string
+          estado: string
+          id?: string
+          municipio_id?: string | null
+          nome: string
+          observacoes?: string
+          sigla?: string
+          telefone?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          endereco?: string
+          estado?: string
+          id?: string
+          municipio_id?: string | null
+          nome?: string
+          observacoes?: string
+          sigla?: string
+          telefone?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orgaos_municipio_id_fkey"
+            columns: ["municipio_id"]
+            isOneToOne: false
+            referencedRelation: "municipios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pack_itens: {
         Row: {

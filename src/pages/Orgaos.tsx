@@ -1,0 +1,571 @@
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
+import {
+  Landmark, Plus, Search, Building2, MapPin, Users, Phone, Mail,
+  Pencil, Trash2, Loader2, Check,
+} from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle,
+} from "@/components/ui/sheet";
+import { toast } from "@/hooks/use-toast";
+
+const ESTADOS_BR = [
+  "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB",
+  "PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
+];
+
+type OrgaoRow = {
+  id: string;
+  nome: string;
+  sigla: string;
+  tipo: string;
+  estado: string;
+  municipio_id: string | null;
+  endereco: string;
+  telefone: string;
+  email: string;
+  observacoes: string;
+};
+
+type MunicipioOpt = { id: string; nome: string; estado: string };
+type ContatoOpt = { id: string; nome: string; cargo: string; municipio_id: string | null };
+type Vinculo = { contato_id: string; papel: string };
+
+type FormState = {
+  nome: string;
+  sigla: string;
+  tipo: string;
+  estado: string;
+  municipio_id: string | null;
+  endereco: string;
+  telefone: string;
+  email: string;
+  observacoes: string;
+  vinculos: Vinculo[];
+};
+
+const emptyForm: FormState = {
+  nome: "", sigla: "", tipo: "", estado: "", municipio_id: null,
+  endereco: "", telefone: "", email: "", observacoes: "", vinculos: [],
+};
+
+export default function Orgaos() {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(emptyForm);
+
+  const { data: orgaos = [], isLoading } = useQuery({
+    queryKey: ["orgaos"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orgaos")
+        .select("*")
+        .order("nome");
+      if (error) throw error;
+      return data as OrgaoRow[];
+    },
+  });
+
+  const { data: municipios = [] } = useQuery({
+    queryKey: ["municipios", "opts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("municipios")
+        .select("id, nome, estado")
+        .order("nome");
+      if (error) throw error;
+      return data as MunicipioOpt[];
+    },
+  });
+
+  const { data: contatos = [] } = useQuery({
+    queryKey: ["contatos", "opts"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("contatos")
+        .select("id, nome, cargo, municipio_id")
+        .order("nome");
+      if (error) throw error;
+      return data as ContatoOpt[];
+    },
+  });
+
+  const { data: vinculosAll = [] } = useQuery({
+    queryKey: ["orgao_contatos", "all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("orgao_contatos")
+        .select("orgao_id, contato_id, papel");
+      if (error) throw error;
+      return data as { orgao_id: string; contato_id: string; papel: string }[];
+    },
+  });
+
+  const munById = useMemo(() => {
+    const map = new Map<string, MunicipioOpt>();
+    municipios.forEach((m) => map.set(m.id, m));
+    return map;
+  }, [municipios]);
+
+  const contatoById = useMemo(() => {
+    const map = new Map<string, ContatoOpt>();
+    contatos.forEach((c) => map.set(c.id, c));
+    return map;
+  }, [contatos]);
+
+  const vinculosByOrgao = useMemo(() => {
+    const map = new Map<string, { contato_id: string; papel: string }[]>();
+    vinculosAll.forEach((v) => {
+      const arr = map.get(v.orgao_id) ?? [];
+      arr.push({ contato_id: v.contato_id, papel: v.papel });
+      map.set(v.orgao_id, arr);
+    });
+    return map;
+  }, [vinculosAll]);
+
+  const munLabel = (id: string | null) => {
+    if (!id) return "—";
+    const m = munById.get(id);
+    return m ? `${m.nome}/${m.estado}` : "—";
+  };
+
+  const filtered = useMemo(() => {
+    const s = search.toLowerCase();
+    return orgaos.filter((o) =>
+      o.nome.toLowerCase().includes(s) ||
+      o.sigla.toLowerCase().includes(s) ||
+      o.tipo.toLowerCase().includes(s) ||
+      munLabel(o.municipio_id).toLowerCase().includes(s)
+    );
+  }, [orgaos, search, munById]);
+
+  const municipiosDoEstado = useMemo(
+    () => municipios.filter((m) => !form.estado || m.estado === form.estado),
+    [municipios, form.estado],
+  );
+
+  const contatosDisponiveis = useMemo(() => {
+    if (!form.municipio_id) return contatos;
+    return contatos.filter((c) => !c.municipio_id || c.municipio_id === form.municipio_id);
+  }, [contatos, form.municipio_id]);
+
+  // Quando muda o estado, limpa município se não pertencer
+  useEffect(() => {
+    if (form.municipio_id) {
+      const m = munById.get(form.municipio_id);
+      if (m && form.estado && m.estado !== form.estado) {
+        setForm((f) => ({ ...f, municipio_id: null }));
+      }
+    }
+  }, [form.estado]); // eslint-disable-line
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      if (!form.nome.trim()) throw new Error("Informe o nome do órgão.");
+      if (!form.estado) throw new Error("Selecione o estado.");
+
+      const payload = {
+        nome: form.nome.trim(),
+        sigla: form.sigla.trim(),
+        tipo: form.tipo.trim(),
+        estado: form.estado,
+        municipio_id: form.municipio_id,
+        endereco: form.endereco.trim(),
+        telefone: form.telefone.trim(),
+        email: form.email.trim(),
+        observacoes: form.observacoes.trim(),
+      };
+
+      let orgaoId: string;
+      if (editingId) {
+        const { error } = await supabase.from("orgaos").update(payload).eq("id", editingId);
+        if (error) throw error;
+        orgaoId = editingId;
+        // limpa vinculos antigos
+        const { error: delErr } = await supabase.from("orgao_contatos").delete().eq("orgao_id", orgaoId);
+        if (delErr) throw delErr;
+      } else {
+        const { data, error } = await supabase.from("orgaos").insert(payload).select("id").single();
+        if (error) throw error;
+        orgaoId = data.id;
+      }
+
+      if (form.vinculos.length > 0) {
+        const rows = form.vinculos.map((v) => ({
+          orgao_id: orgaoId,
+          contato_id: v.contato_id,
+          papel: v.papel ?? "",
+        }));
+        const { error } = await supabase.from("orgao_contatos").insert(rows);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      toast({ title: editingId ? "Órgão atualizado" : "Órgão cadastrado" });
+      qc.invalidateQueries({ queryKey: ["orgaos"] });
+      qc.invalidateQueries({ queryKey: ["orgao_contatos", "all"] });
+      qc.invalidateQueries({ queryKey: ["sidebar", "orgaos-count"] });
+      setSheetOpen(false);
+      setEditingId(null);
+      setForm(emptyForm);
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("orgaos").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({ title: "Órgão removido" });
+      qc.invalidateQueries({ queryKey: ["orgaos"] });
+      qc.invalidateQueries({ queryKey: ["orgao_contatos", "all"] });
+      qc.invalidateQueries({ queryKey: ["sidebar", "orgaos-count"] });
+    },
+    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+  });
+
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setSheetOpen(true);
+  };
+
+  const openEdit = (o: OrgaoRow) => {
+    setEditingId(o.id);
+    const vincs = vinculosByOrgao.get(o.id) ?? [];
+    setForm({
+      nome: o.nome, sigla: o.sigla, tipo: o.tipo, estado: o.estado,
+      municipio_id: o.municipio_id, endereco: o.endereco, telefone: o.telefone,
+      email: o.email, observacoes: o.observacoes,
+      vinculos: vincs.map((v) => ({ contato_id: v.contato_id, papel: v.papel })),
+    });
+    setSheetOpen(true);
+  };
+
+  const toggleContato = (contatoId: string) => {
+    setForm((f) => {
+      const exists = f.vinculos.find((v) => v.contato_id === contatoId);
+      if (exists) {
+        return { ...f, vinculos: f.vinculos.filter((v) => v.contato_id !== contatoId) };
+      }
+      return { ...f, vinculos: [...f.vinculos, { contato_id: contatoId, papel: "" }] };
+    });
+  };
+
+  const setPapel = (contatoId: string, papel: string) => {
+    setForm((f) => ({
+      ...f,
+      vinculos: f.vinculos.map((v) => v.contato_id === contatoId ? { ...v, papel } : v),
+    }));
+  };
+
+  const totalVinculos = vinculosAll.length;
+
+  return (
+    <div className="p-4 lg:p-6 space-y-5 animate-fade-in">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-bold">Órgãos Municipais</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {orgaos.length} órgãos · {totalVinculos} contatos vinculados
+          </p>
+        </div>
+        <Button onClick={openCreate} size="sm" className="h-9 text-xs">
+          <Plus className="w-3.5 h-3.5" /> Novo Órgão
+        </Button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Órgãos", count: orgaos.length, color: "text-primary bg-primary/8 border-primary/15" },
+          { label: "Municípios atendidos", count: new Set(orgaos.map((o) => o.municipio_id).filter(Boolean)).size, color: "text-accent-foreground bg-accent/8 border-accent/20" },
+          { label: "Vínculos", count: totalVinculos, color: "text-status-visited bg-status-visited/8 border-status-visited/15" },
+        ].map((s) => (
+          <Card key={s.label} className={cn("shadow-sm border", s.color.split(" ").at(-1))}>
+            <CardContent className="p-3 text-center">
+              <p className={cn("font-display font-bold text-2xl", s.color.split(" ")[0])}>{s.count}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">{s.label}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por nome, sigla, tipo ou município..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9 h-9 text-sm"
+        />
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+      ) : (
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
+          {filtered.map((o) => {
+            const vincs = vinculosByOrgao.get(o.id) ?? [];
+            return (
+              <Card key={o.id} className="shadow-sm border-border/60 hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Landmark className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="font-semibold text-sm text-foreground truncate">
+                          {o.sigla ? `${o.sigla} — ` : ""}{o.nome}
+                        </p>
+                      </div>
+                      {o.tipo && <p className="text-xs text-muted-foreground truncate">{o.tipo}</p>}
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <MapPin className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-[11px] text-muted-foreground">
+                          {munLabel(o.municipio_id)}{!o.municipio_id && o.estado ? ` · ${o.estado}` : ""}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 space-y-1.5">
+                    {o.telefone && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Phone className="w-3.5 h-3.5 flex-shrink-0" />
+                        <a href={`tel:${o.telefone}`} className="hover:text-primary truncate">{o.telefone}</a>
+                      </div>
+                    )}
+                    {o.email && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Mail className="w-3.5 h-3.5 flex-shrink-0" />
+                        <a href={`mailto:${o.email}`} className="hover:text-primary truncate">{o.email}</a>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-border/40">
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground mb-1.5">
+                      <Users className="w-3 h-3" /> Contatos ({vincs.length})
+                    </div>
+                    {vincs.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground/70 italic">Nenhum contato vinculado</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {vincs.slice(0, 4).map((v) => {
+                          const c = contatoById.get(v.contato_id);
+                          if (!c) return null;
+                          return (
+                            <span key={v.contato_id} className="text-[10px] bg-muted px-1.5 py-0.5 rounded">
+                              {c.nome}{v.papel ? ` · ${v.papel}` : ""}
+                            </span>
+                          );
+                        })}
+                        {vincs.length > 4 && (
+                          <span className="text-[10px] text-muted-foreground">+{vincs.length - 4}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 pt-3 border-t border-border/40 flex items-center gap-2">
+                    <button
+                      onClick={() => openEdit(o)}
+                      className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-1.5 rounded-md hover:bg-muted/60"
+                    >
+                      <Pencil className="w-3.5 h-3.5" /> Editar
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (confirm(`Excluir órgão "${o.sigla || o.nome}"?`)) deleteMutation.mutate(o.id);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-destructive/80 hover:text-destructive transition-colors py-1.5 rounded-md hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Excluir
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {!isLoading && filtered.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+          <Landmark className="w-8 h-8 mb-3 opacity-30" />
+          <p className="text-sm">Nenhum órgão cadastrado</p>
+          <Button onClick={openCreate} variant="outline" size="sm" className="mt-3 h-8 text-xs">
+            <Plus className="w-3.5 h-3.5" /> Cadastrar primeiro órgão
+          </Button>
+        </div>
+      )}
+
+      <Sheet
+        open={sheetOpen}
+        onOpenChange={(o) => {
+          setSheetOpen(o);
+          if (!o) { setEditingId(null); setForm(emptyForm); }
+        }}
+      >
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>{editingId ? "Editar órgão" : "Novo órgão"}</SheetTitle>
+            <SheetDescription>
+              Cadastre o órgão municipal (SEMMA, SEMAS, SEFA, etc.) e vincule os contatos responsáveis.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="space-y-4 mt-5">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs">Sigla</Label>
+                <Input value={form.sigla} onChange={(e) => setForm({ ...form, sigla: e.target.value })} placeholder="SEMMA" className="h-9 text-sm" />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label className="text-xs">Nome *</Label>
+                <Input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} placeholder="Secretaria de Meio Ambiente" className="h-9 text-sm" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Tipo</Label>
+              <Input value={form.tipo} onChange={(e) => setForm({ ...form, tipo: e.target.value })} placeholder="Secretaria municipal" className="h-9 text-sm" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs">Estado *</Label>
+                <Select value={form.estado || undefined} onValueChange={(v) => setForm({ ...form, estado: v })}>
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="UF" /></SelectTrigger>
+                  <SelectContent>
+                    {ESTADOS_BR.map((uf) => <SelectItem key={uf} value={uf} className="text-sm">{uf}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Município</Label>
+                <Select
+                  value={form.municipio_id ?? "__none__"}
+                  onValueChange={(v) => setForm({ ...form, municipio_id: v === "__none__" ? null : v })}
+                  disabled={!form.estado}
+                >
+                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder={form.estado ? "Selecione" : "Escolha o estado"} /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__" className="text-sm text-muted-foreground">Sem município</SelectItem>
+                    {municipiosDoEstado.map((m) => (
+                      <SelectItem key={m.id} value={m.id} className="text-sm">{m.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {form.estado && municipiosDoEstado.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground">Nenhum município cadastrado em {form.estado}.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Endereço</Label>
+              <Input value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} className="h-9 text-sm" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label className="text-xs">Telefone</Label>
+                <Input value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} className="h-9 text-sm" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs">Email</Label>
+                <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="h-9 text-sm" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs">Observações</Label>
+              <Textarea
+                value={form.observacoes}
+                onChange={(e) => setForm({ ...form, observacoes: e.target.value })}
+                rows={2}
+                className="text-sm resize-none"
+              />
+            </div>
+
+            {/* Vínculos com contatos */}
+            <div className="space-y-2 pt-2 border-t border-border/60">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5" /> Contatos vinculados
+                </Label>
+                <span className="text-[11px] text-muted-foreground">
+                  {form.vinculos.length} selecionado(s)
+                </span>
+              </div>
+              {contatosDisponiveis.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground py-3 text-center bg-muted/30 rounded">
+                  Nenhum contato {form.municipio_id ? "neste município" : "cadastrado"}. Cadastre em Contatos primeiro.
+                </p>
+              ) : (
+                <div className="max-h-64 overflow-y-auto rounded-lg border border-border/60 divide-y divide-border/40">
+                  {contatosDisponiveis.map((c) => {
+                    const v = form.vinculos.find((x) => x.contato_id === c.id);
+                    const checked = !!v;
+                    return (
+                      <div key={c.id} className="p-2.5">
+                        <button
+                          type="button"
+                          onClick={() => toggleContato(c.id)}
+                          className="w-full flex items-start gap-2 text-left"
+                        >
+                          <span className={cn(
+                            "w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5",
+                            checked ? "bg-primary border-primary" : "border-border"
+                          )}>
+                            {checked && <Check className="w-3 h-3 text-primary-foreground" />}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate">{c.nome}</p>
+                            {c.cargo && <p className="text-[11px] text-muted-foreground truncate">{c.cargo}</p>}
+                          </div>
+                        </button>
+                        {checked && (
+                          <Input
+                            value={v.papel}
+                            onChange={(e) => setPapel(c.id, e.target.value)}
+                            placeholder="Papel no órgão (ex: Secretário, Assessor)"
+                            className="h-8 text-xs mt-2 ml-6"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <SheetFooter className="mt-6 gap-2">
+            <Button variant="outline" onClick={() => setSheetOpen(false)} className="h-9 text-xs">Cancelar</Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="h-9 text-xs">
+              {saveMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {editingId ? "Salvar alterações" : "Cadastrar órgão"}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
