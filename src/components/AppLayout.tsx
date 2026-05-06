@@ -4,6 +4,7 @@ import {
   MapPin,
   CalendarCheck,
   Users,
+  Landmark,
   Package,
   Gift,
   BarChart3,
@@ -44,6 +45,30 @@ export default function AppLayout() {
     staleTime: 30_000,
   });
 
+  const { data: contatosCount = 0 } = useQuery({
+    queryKey: ["sidebar", "contatos-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("contatos")
+        .select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+    staleTime: 30_000,
+  });
+
+  const { data: orgaosCount = 0 } = useQuery({
+    queryKey: ["sidebar", "orgaos-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("orgaos")
+        .select("*", { count: "exact", head: true });
+      if (error) throw error;
+      return count ?? 0;
+    },
+    staleTime: 30_000,
+  });
+
   const { data: estoqueAlerta = false } = useQuery({
     queryKey: ["sidebar", "estoque-alerta"],
     queryFn: async () => {
@@ -63,8 +88,9 @@ export default function AppLayout() {
   const navItems: NavItem[] = [
     { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
     { to: "/municipios", label: "Municípios", icon: MapPin, badge: municipiosCount || undefined },
+    { to: "/contatos", label: "Contatos", icon: Users, badge: contatosCount || undefined },
+    { to: "/orgaos", label: "Órgãos", icon: Landmark, badge: orgaosCount || undefined },
     { to: "/visitas", label: "Visitas", icon: CalendarCheck },
-    { to: "/contatos", label: "Contatos", icon: Users },
     { to: "/estoque", label: "Estoque", icon: Package, alert: estoqueAlerta },
     { to: "/kits", label: "Kits", icon: Gift },
     { to: "/inteligencia", label: "Inteligência", icon: BarChart3 },
