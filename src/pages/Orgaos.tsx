@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
   Landmark, Plus, Search, MapPin, Users, Phone, Mail,
-  Pencil, Trash2, Loader2, Check, MessageCircle, UserPlus,
+  Pencil, Trash2, Loader2, Check, MessageCircle, UserPlus, Building2, FileText,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +17,9 @@ import {
 import {
   Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import ContatoFormSheet from "@/components/ContatoFormSheet";
 
@@ -655,6 +658,163 @@ export default function Orgaos() {
           );
         }}
       />
+
+      {/* Detail dialog */}
+      <Dialog open={!!detailOrgaoId} onOpenChange={(o) => !o && setDetailOrgaoId(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          {(() => {
+            const o = orgaos.find((x) => x.id === detailOrgaoId);
+            if (!o) return null;
+            const vincs = vinculosByOrgao.get(o.id) ?? [];
+            return (
+              <>
+                <DialogHeader>
+                  <div className="flex items-start gap-3">
+                    <div className="w-11 h-11 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Landmark className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <DialogTitle className="text-base">
+                        {o.sigla ? `${o.sigla} — ` : ""}{o.nome}
+                      </DialogTitle>
+                      <DialogDescription className="text-xs mt-0.5">
+                        {o.tipo || "Órgão municipal"}
+                      </DialogDescription>
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                <div className="space-y-4 mt-2">
+                  {/* Localização */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/40">
+                      <MapPin className="w-3.5 h-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Município</p>
+                        <p className="font-medium">{munLabel(o.municipio_id)}{!o.municipio_id && o.estado ? ` · ${o.estado}` : ""}</p>
+                      </div>
+                    </div>
+                    {o.endereco && (
+                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/40">
+                        <Building2 className="w-3.5 h-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Endereço</p>
+                          <p className="font-medium truncate">{o.endereco}</p>
+                        </div>
+                      </div>
+                    )}
+                    {o.telefone && (
+                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/40">
+                        <Phone className="w-3.5 h-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Telefone</p>
+                          <a href={`tel:${o.telefone}`} className="font-medium hover:text-primary">{o.telefone}</a>
+                        </div>
+                      </div>
+                    )}
+                    {o.email && (
+                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/40 min-w-0">
+                        <Mail className="w-3.5 h-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Email</p>
+                          <a href={`mailto:${o.email}`} className="font-medium hover:text-primary truncate block">{o.email}</a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {o.observacoes && (
+                    <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/40 text-xs">
+                      <FileText className="w-3.5 h-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Observações</p>
+                        <p className="whitespace-pre-wrap">{o.observacoes}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contatos detalhados */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-xs font-semibold flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-primary" />
+                        Contatos vinculados ({vincs.length})
+                      </h3>
+                    </div>
+                    {vincs.length === 0 ? (
+                      <p className="text-xs text-muted-foreground italic py-4 text-center bg-muted/30 rounded-lg">
+                        Nenhum contato vinculado a este órgão.
+                      </p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {vincs.map((v) => {
+                          const c = contatoById.get(v.contato_id);
+                          if (!c) return null;
+                          const initials = c.nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+                          return (
+                            <li key={v.contato_id} className="flex items-start gap-3 p-3 rounded-lg border border-border/60 hover:border-primary/40 transition-colors">
+                              <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-xs font-bold text-primary">
+                                {initials}
+                              </div>
+                              <div className="flex-1 min-w-0 space-y-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <p className="text-sm font-semibold truncate">{c.nome}</p>
+                                  {c.nivel && (
+                                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                      {c.nivel}
+                                    </span>
+                                  )}
+                                </div>
+                                {(v.papel || c.cargo) && (
+                                  <p className="text-[11px] text-muted-foreground">
+                                    {v.papel ? <span className="font-medium text-foreground">{v.papel}</span> : null}
+                                    {v.papel && c.cargo ? " · " : ""}
+                                    {c.cargo}
+                                  </p>
+                                )}
+                                <div className="flex flex-col gap-0.5 pt-1">
+                                  {c.telefone && (
+                                    <a href={`tel:${c.telefone}`} className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1.5">
+                                      <Phone className="w-3 h-3" />
+                                      {c.telefone}
+                                      {c.whatsapp && (
+                                        <span className="inline-flex items-center gap-0.5 text-[9px] text-status-visited bg-status-visited/10 px-1 rounded">
+                                          <MessageCircle className="w-2.5 h-2.5" /> WhatsApp
+                                        </span>
+                                      )}
+                                    </a>
+                                  )}
+                                  {c.email && (
+                                    <a href={`mailto:${c.email}`} className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1.5 truncate">
+                                      <Mail className="w-3 h-3 flex-shrink-0" />
+                                      <span className="truncate">{c.email}</span>
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-border/60">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1 h-9 text-xs"
+                      onClick={() => { setDetailOrgaoId(null); openEdit(o); }}
+                    >
+                      <Pencil className="w-3.5 h-3.5" /> Editar órgão
+                    </Button>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
