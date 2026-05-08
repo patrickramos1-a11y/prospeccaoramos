@@ -68,6 +68,7 @@ export default function Orgaos() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [contatoSheetOpen, setContatoSheetOpen] = useState(false);
   const [contatoSearch, setContatoSearch] = useState("");
+  const [detailOrgaoId, setDetailOrgaoId] = useState<string | null>(null);
 
   const { data: orgaos = [], isLoading } = useQuery({
     queryKey: ["orgaos"],
@@ -333,18 +334,20 @@ export default function Orgaos() {
           {filtered.map((o) => {
             const vincs = vinculosByOrgao.get(o.id) ?? [];
             return (
-              <Card key={o.id} className="shadow-sm border-border/60 hover:shadow-md transition-shadow">
+              <Card
+                key={o.id}
+                onClick={() => setDetailOrgaoId(o.id)}
+                className="shadow-sm border-border/60 hover:shadow-md hover:border-primary/40 transition-all cursor-pointer group"
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/15 transition-colors">
                       <Landmark className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="font-semibold text-sm text-foreground truncate">
-                          {o.sigla ? `${o.sigla} — ` : ""}{o.nome}
-                        </p>
-                      </div>
+                      <p className="font-semibold text-sm text-foreground truncate">
+                        {o.sigla ? `${o.sigla} — ` : ""}{o.nome}
+                      </p>
                       {o.tipo && <p className="text-xs text-muted-foreground truncate">{o.tipo}</p>}
                       <div className="flex items-center gap-1 mt-0.5">
                         <MapPin className="w-3 h-3 text-muted-foreground" />
@@ -355,54 +358,60 @@ export default function Orgaos() {
                     </div>
                   </div>
 
-                  <div className="mt-3 space-y-1.5">
-                    {o.telefone && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Phone className="w-3.5 h-3.5 flex-shrink-0" />
-                        <a href={`tel:${o.telefone}`} className="hover:text-primary truncate">{o.telefone}</a>
-                      </div>
-                    )}
-                    {o.email && (
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <Mail className="w-3.5 h-3.5 flex-shrink-0" />
-                        <a href={`mailto:${o.email}`} className="hover:text-primary truncate">{o.email}</a>
-                      </div>
-                    )}
-                  </div>
-
                   <div className="mt-3 pt-3 border-t border-border/40">
-                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground mb-1.5">
-                      <Users className="w-3 h-3" /> Contatos ({vincs.length})
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
+                        <Users className="w-3 h-3" /> Contatos ({vincs.length})
+                      </div>
+                      {vincs.length > 0 && (
+                        <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                          Ver detalhes →
+                        </span>
+                      )}
                     </div>
                     {vincs.length === 0 ? (
                       <p className="text-[11px] text-muted-foreground/70 italic">Nenhum contato vinculado</p>
                     ) : (
-                      <div className="flex flex-wrap gap-1">
-                        {vincs.slice(0, 4).map((v) => {
+                      <ul className="space-y-1.5">
+                        {vincs.slice(0, 3).map((v) => {
                           const c = contatoById.get(v.contato_id);
                           if (!c) return null;
+                          const initials = c.nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
                           return (
-                            <span key={v.contato_id} className="text-[10px] bg-muted px-1.5 py-0.5 rounded">
-                              {c.nome}{v.papel ? ` · ${v.papel}` : ""}
-                            </span>
+                            <li key={v.contato_id} className="flex items-center gap-2 min-w-0">
+                              <span className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-[9px] font-bold text-primary">
+                                {initials}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-foreground truncate leading-tight">{c.nome}</p>
+                                {(v.papel || c.cargo) && (
+                                  <p className="text-[10px] text-muted-foreground truncate leading-tight">
+                                    {v.papel || c.cargo}
+                                  </p>
+                                )}
+                              </div>
+                            </li>
                           );
                         })}
-                        {vincs.length > 4 && (
-                          <span className="text-[10px] text-muted-foreground">+{vincs.length - 4}</span>
+                        {vincs.length > 3 && (
+                          <li className="text-[10px] text-muted-foreground pl-8">
+                            +{vincs.length - 3} contato(s)
+                          </li>
                         )}
-                      </div>
+                      </ul>
                     )}
                   </div>
 
                   <div className="mt-3 pt-3 border-t border-border/40 flex items-center gap-2">
                     <button
-                      onClick={() => openEdit(o)}
+                      onClick={(e) => { e.stopPropagation(); openEdit(o); }}
                       className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-1.5 rounded-md hover:bg-muted/60"
                     >
                       <Pencil className="w-3.5 h-3.5" /> Editar
                     </button>
                     <button
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation();
                         if (confirm(`Excluir órgão "${o.sigla || o.nome}"?`)) deleteMutation.mutate(o.id);
                       }}
                       className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-destructive/80 hover:text-destructive transition-colors py-1.5 rounded-md hover:bg-destructive/10"
