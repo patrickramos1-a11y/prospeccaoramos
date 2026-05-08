@@ -127,13 +127,14 @@ export default function Visitas() {
 
   const toggleItem = useMutation({
     mutationFn: async (item: ChecklistItem) => {
+      const novo = !item.feito;
       const { error } = await supabase
-        .from("visita_checklist").update({ feito: !item.feito }).eq("id", item.id);
+        .from("visita_checklist").update({ feito: novo }).eq("id", item.id);
       if (error) throw error;
-      // Recalcular progresso
-      const all = await supabase.from("visita_checklist").select("feito").eq("visita_id", item.visita_id);
-      const total = all.data?.length ?? 0;
-      const done = (all.data ?? []).filter((x: any) => (x.id === item.id ? !item.feito : x.feito)).length;
+      const { data: all } = await supabase
+        .from("visita_checklist").select("id, feito").eq("visita_id", item.visita_id);
+      const total = all?.length ?? 0;
+      const done = (all ?? []).filter((x: any) => x.id === item.id ? novo : x.feito).length;
       const pct = total ? Math.round((done / total) * 100) : 0;
       await supabase.from("visitas").update({ progresso: pct }).eq("id", item.visita_id);
     },
