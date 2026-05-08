@@ -537,6 +537,17 @@ export default function Orgaos() {
                   </Button>
                 </div>
               </div>
+
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  value={contatoSearch}
+                  onChange={(e) => setContatoSearch(e.target.value)}
+                  placeholder="Buscar contato por nome, cargo, telefone ou email..."
+                  className="pl-8 h-8 text-xs"
+                />
+              </div>
+
               {contatosDisponiveis.length === 0 ? (
                 <div className="text-center py-4 bg-muted/30 rounded-lg space-y-2">
                   <p className="text-[11px] text-muted-foreground">
