@@ -610,6 +610,19 @@ export default function Orgaos() {
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <ContatoFormSheet
+        open={contatoSheetOpen}
+        onOpenChange={setContatoSheetOpen}
+        defaultMunicipioId={form.municipio_id}
+        onSaved={(id) => {
+          setForm((f) =>
+            f.vinculos.find((v) => v.contato_id === id)
+              ? f
+              : { ...f, vinculos: [...f.vinculos, { contato_id: id, papel: "" }] }
+          );
+        }}
+      />
     </div>
   );
 }
