@@ -87,8 +87,7 @@ export default function AppLayout() {
   const navItems: NavItem[] = [
     { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
     { to: "/municipios", label: "Municípios", icon: MapPin, badge: municipiosCount || undefined },
-    { to: "/contatos", label: "Contatos", icon: Users, badge: contatosCount || undefined },
-    { to: "/orgaos", label: "Órgãos", icon: Landmark, badge: orgaosCount || undefined },
+    { to: "/orgaos", label: "Órgãos & Contatos", icon: Landmark, badge: (orgaosCount + contatosCount) || undefined },
     { to: "/visitas", label: "Visitas", icon: CalendarCheck },
     { to: "/estoque", label: "Estoque", icon: Package, alert: estoqueAlerta },
     { to: "/kits", label: "Kits", icon: Gift },

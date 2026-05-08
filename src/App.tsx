@@ -7,8 +7,8 @@ import AppLayout from "./components/AppLayout";
 import Dashboard from "./pages/Dashboard";
 import Municipios from "./pages/Municipios";
 import Visitas from "./pages/Visitas";
-import Contatos from "./pages/Contatos";
-import Orgaos from "./pages/Orgaos";
+import OrgaosHub from "./pages/OrgaosHub";
+import { Navigate } from "react-router-dom";
 import Estoque from "./pages/Estoque";
 import Kits from "./pages/Kits";
 import Inteligencia from "./pages/Inteligencia";
@@ -28,8 +28,8 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/municipios" element={<Municipios />} />
             <Route path="/visitas" element={<Visitas />} />
-            <Route path="/contatos" element={<Contatos />} />
-            <Route path="/orgaos" element={<Orgaos />} />
+            <Route path="/orgaos" element={<OrgaosHub />} />
+            <Route path="/contatos" element={<Navigate to="/orgaos?tab=contatos" replace />} />
             <Route path="/estoque" element={<Estoque />} />
             <Route path="/kits" element={<Kits />} />
             <Route path="/inteligencia" element={<Inteligencia />} />
