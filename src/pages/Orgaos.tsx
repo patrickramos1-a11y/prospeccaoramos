@@ -160,9 +160,18 @@ export default function Orgaos() {
   );
 
   const contatosDisponiveis = useMemo(() => {
-    if (!form.municipio_id) return contatos;
-    return contatos.filter((c) => !c.municipio_id || c.municipio_id === form.municipio_id);
-  }, [contatos, form.municipio_id]);
+    const base = !form.municipio_id
+      ? contatos
+      : contatos.filter((c) => !c.municipio_id || c.municipio_id === form.municipio_id);
+    const s = contatoSearch.trim().toLowerCase();
+    if (!s) return base;
+    return base.filter((c) =>
+      c.nome.toLowerCase().includes(s) ||
+      (c.cargo ?? "").toLowerCase().includes(s) ||
+      (c.email ?? "").toLowerCase().includes(s) ||
+      (c.telefone ?? "").toLowerCase().includes(s)
+    );
+  }, [contatos, form.municipio_id, contatoSearch]);
 
   // Quando muda o estado, limpa município se não pertencer
   useEffect(() => {
