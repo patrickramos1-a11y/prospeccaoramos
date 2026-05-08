@@ -67,6 +67,7 @@ export default function Orgaos() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [contatoSheetOpen, setContatoSheetOpen] = useState(false);
+  const [contatoSearch, setContatoSearch] = useState("");
 
   const { data: orgaos = [], isLoading } = useQuery({
     queryKey: ["orgaos"],
