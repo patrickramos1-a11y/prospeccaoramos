@@ -3,8 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
-  Landmark, Plus, Search, Building2, MapPin, Users, Phone, Mail,
-  Pencil, Trash2, Loader2, Check,
+  Landmark, Plus, Search, MapPin, Users, Phone, Mail,
+  Pencil, Trash2, Loader2, Check, MessageCircle, UserPlus,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import {
   Sheet, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle,
 } from "@/components/ui/sheet";
 import { toast } from "@/hooks/use-toast";
+import ContatoFormSheet from "@/components/ContatoFormSheet";
 
 const ESTADOS_BR = [
   "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB",
@@ -38,7 +39,7 @@ type OrgaoRow = {
 };
 
 type MunicipioOpt = { id: string; nome: string; estado: string };
-type ContatoOpt = { id: string; nome: string; cargo: string; municipio_id: string | null };
+type ContatoOpt = { id: string; nome: string; cargo: string; nivel: string; municipio_id: string | null; telefone: string; email: string; whatsapp: boolean };
 type Vinculo = { contato_id: string; papel: string };
 
 type FormState = {
@@ -65,6 +66,7 @@ export default function Orgaos() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [contatoSheetOpen, setContatoSheetOpen] = useState(false);
 
   const { data: orgaos = [], isLoading } = useQuery({
     queryKey: ["orgaos"],
@@ -95,7 +97,7 @@ export default function Orgaos() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("contatos")
-        .select("id, nome, cargo, municipio_id")
+        .select("id, nome, cargo, nivel, municipio_id, telefone, email, whatsapp")
         .order("nome");
       if (error) throw error;
       return data as ContatoOpt[];
