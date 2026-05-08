@@ -551,7 +551,9 @@ export default function Orgaos() {
               {contatosDisponiveis.length === 0 ? (
                 <div className="text-center py-4 bg-muted/30 rounded-lg space-y-2">
                   <p className="text-[11px] text-muted-foreground">
-                    Nenhum contato {form.municipio_id ? "neste município" : "cadastrado"}.
+                    {contatoSearch
+                      ? `Nenhum contato encontrado para "${contatoSearch}".`
+                      : `Nenhum contato ${form.municipio_id ? "neste município" : "cadastrado"}.`}
                   </p>
                   <Button
                     type="button"
