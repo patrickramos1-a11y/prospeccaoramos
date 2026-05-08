@@ -1,104 +1,85 @@
+## Cadastro de Visitas + Gestão de Usuários
 
-## Objetivo
-
-1. Reordenar a navegação para: Dashboard, **Municípios → Contatos → Órgãos → Visitas**, Estoque, Kits, Inteligência, Financeiro.
-2. Criar nova aba **Órgãos** entre Contatos e Visitas para cadastrar órgãos municipais (SEMMA, SEMAS, SEFA, etc.).
-3. No cadastro de órgão, vincular: **Estado**, **Município**, e **Contatos** já cadastrados (relação N:N).
-4. Como Órgãos depende de Contatos reais, vamos migrar a tela de Contatos do mock (`CONTATOS` em `mockData.ts`) para o banco também — caso contrário não há como relacionar.
+Atualmente a página `Visitas.tsx` usa dados mockados (`VISITAS` de `mockData`). Vamos persistir tudo no Lovable Cloud, criar o fluxo de cadastro completo e introduzir a tela de Configurações com gestão de usuários (responsáveis).
 
 ---
 
-## Mudanças no Backend (Lovable Cloud)
+### Etapa 1 — Banco de dados (migrations)
 
-Criar via migração SQL:
+**1.1 Tabela `usuarios`** (responsáveis pelas visitas — perfis internos da equipe, não auth.users)
+- `nome`, `email`, `telefone`, `cargo`, `cor` (para avatar), `ativo` (boolean)
 
-### Tabela `contatos`
-```text
-id              uuid PK (gen_random_uuid)
-nome            text not null
-cargo           text
-nivel           text default 'Básico'   -- Decisor | Relevante | Básico
-municipio_id    uuid -> municipios(id) on delete set null
-telefone        text
-email           text
-whatsapp        boolean default false
-observacoes     text
-created_at, updated_at  timestamptz
-```
-RLS: `Allow all access` (mesmo padrão das outras tabelas do projeto).
+**1.2 Tabela `visitas`**
+- `municipio_id` (FK lógica → municipios)
+- `orgao_id` (FK lógica → orgaos)
+- `responsavel_id` (FK lógica → usuarios)
+- `data_visita` (date), `hora` (time, opcional)
+- `tipo` (text: "Primeira abordagem", "Coleta documental", "Follow-up", "Entrega")
+- `status` (text: "planejada", "em_andamento", "concluida", "cancelada")
+- `observacoes` (text)
+- `custo_total` (numeric, calculado a partir dos kits)
+- `progresso` (int, % checklist)
 
-### Tabela `orgaos`
-```text
-id              uuid PK
-nome            text not null            -- ex: "SEMMA"
-sigla           text
-tipo            text                     -- ex: "Secretaria Municipal de Meio Ambiente"
-estado          text not null            -- UF
-municipio_id    uuid -> municipios(id) on delete cascade
-endereco        text
-telefone        text
-email           text
-observacoes     text
-created_at, updated_at  timestamptz
-```
+**1.3 Tabela `visita_kits`** (relação N:N visita ↔ kits, com snapshot de custo)
+- `visita_id`, `kit_id`, `quantidade`, `custo_unitario_snapshot`
 
-### Tabela de junção `orgao_contatos`
-```text
-id              uuid PK
-orgao_id        uuid -> orgaos(id) on delete cascade
-contato_id      uuid -> contatos(id) on delete cascade
-papel           text                     -- ex: "Secretário", "Assessor"
-unique(orgao_id, contato_id)
-```
+**1.4 Tabela `visita_checklist`** (estado do checklist por visita)
+- `visita_id`, `step_id`, `item_id`, `texto`, `feito` (bool)
 
-Triggers `updated_at` reutilizando `public.update_updated_at_column()`.
+RLS: liberada (`true`) seguindo padrão atual do projeto. Triggers `updated_at`.
 
 ---
 
-## Mudanças no Frontend
+### Etapa 2 — Página de Configurações (nova)
 
-### 1. Sidebar (`src/components/AppLayout.tsx`)
-Reordenar `navItems` para: Dashboard, **Municípios, Contatos, Órgãos, Visitas**, Estoque, Kits, Inteligência, Financeiro. Adicionar ícone `Landmark` (lucide) para Órgãos e badge dinâmico com a contagem (`select count` em `orgaos`).
-
-### 2. Roteamento (`src/App.tsx`)
-Adicionar rota `/orgaos` apontando para nova página `Orgaos`.
-
-### 3. Página de Contatos (`src/pages/Contatos.tsx`) — migração para banco
-- Remover dependência de `CONTATOS` (mock).
-- Listar via `useQuery` em `contatos` com join lógico para `municipios` (nome/UF).
-- Botão **Novo Contato** abre `Sheet` com formulário (nome, cargo, nível, município via `IbgeMunicipioPicker` ou select dos municípios já cadastrados, telefone, email, whatsapp, observações).
-- Suporte a editar e excluir (mesmo padrão de `Municipios.tsx`: `useMutation` + invalidate).
-- Manter visual atual (cards, stats de Decisores/Relevantes/WhatsApp, busca).
-
-### 4. Nova página `src/pages/Orgaos.tsx`
-- Header com título "Órgãos Municipais" + botão **Novo Órgão**.
-- Stats simples: total de órgãos, órgãos por município, contatos vinculados.
-- Busca por nome/sigla/município.
-- Grid de cards com nome, sigla, município/UF, lista resumida dos contatos vinculados.
-- `Sheet` lateral para criar/editar com:
-  - Nome, Sigla, Tipo (text)
-  - **Estado + Município** via `IbgeMunicipioPicker` (mesmo componente já usado em Municípios), preenchendo `estado` e `municipio_id` (resolvendo para o município já cadastrado no banco; se não existir, criar entrada em `municipios` automaticamente — mesma lógica que já existe no fluxo).
-  - Endereço, Telefone, Email, Observações.
-  - **Contatos vinculados**: multi-select dos contatos existentes filtrados pelo município escolhido, com campo opcional "papel" por contato. Salvar inserindo linhas em `orgao_contatos`.
-- Editar/excluir com confirmação.
-
-### 5. Detalhes técnicos
-- Reaproveitar padrões de `Municipios.tsx`: `react-hook-form` + `zod`, `Sheet`, `useMutation`, `queryClient.invalidateQueries`.
-- Tipagens vêm de `@/integrations/supabase/types` (auto-geradas após a migração).
-- Toasts em criar/editar/excluir.
-- Mobile-first (cards em coluna no mobile, grid em telas maiores).
+- Nova rota `/configuracoes` + item no `Sidebar` (ícone Settings, abaixo de Financeiro).
+- Página `Configuracoes.tsx` com abas (tabs):
+  - **Usuários** (foco desta entrega): listagem, busca, botão "Novo Usuário", editar/desativar.
+  - Espaço para futuras abas (Preferências, Integrações).
+- Componente `UsuarioFormSheet.tsx` (Sheet lateral) — mesmo padrão do `ContatoFormSheet`: nome, email, telefone, cargo, cor, ativo.
 
 ---
 
-## Arquivos esperados
-- migração SQL: criar `contatos`, `orgaos`, `orgao_contatos` + triggers + RLS.
-- `src/components/AppLayout.tsx` — reordenar nav e adicionar Órgãos.
-- `src/App.tsx` — registrar rota `/orgaos`.
-- `src/pages/Contatos.tsx` — migrar do mock para Supabase com CRUD.
-- `src/pages/Orgaos.tsx` — **novo arquivo** com listagem e CRUD.
-- (opcional) `src/data/mockData.ts` — manter constantes de cor/labels, mas remover dependência da lista `CONTATOS` quando Contatos passar a usar o banco.
+### Etapa 3 — Cadastro de Visitas
 
-## Resultado esperado
-- Sidebar na ordem solicitada.
-- Aba **Órgãos** funcional, permitindo cadastrar SEMMA/SEMAS/SEFA etc., escolhendo estado, município e marcando os contatos institucionais já cadastrados que pertencem àquele órgão.
-- Contatos passam a ser persistidos de verdade (necessário para o vínculo).
+**3.1 Componente `VisitaFormSheet.tsx`** (Sheet lateral, mobile-first), campos em ordem:
+
+1. **Estado** (select — derivado dos estados existentes em `municipios`)
+2. **Município** (select filtrado pelo estado)
+3. **Órgão** (select filtrado pelo município escolhido; mostra nome + sigla)
+4. **Tipo de visita** (select)
+5. **Data** (date picker) + **Hora** (opcional)
+6. **Responsável** (select de `usuarios` ativos; com link "Cadastrar responsável" → abre `UsuarioFormSheet`)
+7. **Kits** (multi-seleção com quantidade): lista de `kits` ativos com `disponiveis > 0`, mostrando custo unitário (calculado a partir de `kit_itens` × `estoque_itens.custo_unitario`). Exibe **custo total da visita** somando linha a linha.
+8. **Observações**
+
+Validação com `zod`. Ao salvar: insert em `visitas` + insert em `visita_kits` (com snapshot de custo) + seed do `visita_checklist` a partir do template `CHECKLIST_STEPS` atual.
+
+**3.2 Refatorar `Visitas.tsx`**
+- Remover dependência de `mockData.VISITAS`; carregar via `supabase.from('visitas').select(...)` com joins (município, órgão, responsável).
+- Botão "+ Nova Visita" abre `VisitaFormSheet`.
+- Painel de detalhes à direita: ler checklist da tabela, atualizar `feito` no banco, recalcular `progresso` na visita.
+- Mostrar custo total e kits vinculados.
+- Agrupamento por status (planejada / em andamento / concluída) mantido.
+
+---
+
+### Etapa 4 — Ajustes complementares
+
+- Atualizar `Sidebar` (badge de contagem para Visitas se aplicável).
+- Custo das visitas alimenta a página **Financeiro** (consulta agregada simples).
+- Garantir realtime (opcional) na tabela `visitas`.
+
+---
+
+### Ordem de execução e pontos de aprovação
+
+1. Migration (Etapa 1) — requer aprovação do usuário.
+2. Configurações + CRUD de Usuários (Etapa 2).
+3. Cadastro de Visitas + refator da página (Etapa 3).
+4. Refinos (Etapa 4).
+
+### Perguntas antes de começar
+
+- **Responsáveis = usuários com login no sistema?** A proposta acima trata responsáveis como **perfis internos** (tabela `usuarios` simples, sem auth). Se você quiser que cada responsável faça login (Lovable Cloud Auth com email/senha + Google), isso vira uma etapa extra (auth + tabela `profiles` + roles). Posso seguir do jeito simples ou já incluir login?
+- **Custo do kit**: calcular dinamicamente a partir dos itens do kit, ou adicionar campo `custo_unitario` direto na tabela `kits`?
