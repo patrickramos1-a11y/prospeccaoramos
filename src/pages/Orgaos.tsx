@@ -508,29 +508,51 @@ export default function Orgaos() {
 
             {/* Vínculos com contatos */}
             <div className="space-y-2 pt-2 border-t border-border/60">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <Label className="text-xs flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5" /> Contatos vinculados
                 </Label>
-                <span className="text-[11px] text-muted-foreground">
-                  {form.vinculos.length} selecionado(s)
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-muted-foreground">
+                    {form.vinculos.length} selecionado(s)
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setContatoSheetOpen(true)}
+                    className="h-7 text-[11px] px-2"
+                  >
+                    <UserPlus className="w-3 h-3" /> Novo
+                  </Button>
+                </div>
               </div>
               {contatosDisponiveis.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground py-3 text-center bg-muted/30 rounded">
-                  Nenhum contato {form.municipio_id ? "neste município" : "cadastrado"}. Cadastre em Contatos primeiro.
-                </p>
+                <div className="text-center py-4 bg-muted/30 rounded-lg space-y-2">
+                  <p className="text-[11px] text-muted-foreground">
+                    Nenhum contato {form.municipio_id ? "neste município" : "cadastrado"}.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setContatoSheetOpen(true)}
+                    className="h-7 text-[11px]"
+                  >
+                    <UserPlus className="w-3 h-3" /> Cadastrar contato
+                  </Button>
+                </div>
               ) : (
-                <div className="max-h-64 overflow-y-auto rounded-lg border border-border/60 divide-y divide-border/40">
+                <div className="max-h-80 overflow-y-auto rounded-lg border border-border/60 divide-y divide-border/40">
                   {contatosDisponiveis.map((c) => {
                     const v = form.vinculos.find((x) => x.contato_id === c.id);
                     const checked = !!v;
                     return (
-                      <div key={c.id} className="p-2.5">
+                      <div key={c.id} className={cn("p-2.5 transition-colors", checked && "bg-primary/5")}>
                         <button
                           type="button"
                           onClick={() => toggleContato(c.id)}
-                          className="w-full flex items-start gap-2 text-left"
+                          className="w-full flex items-start gap-2.5 text-left"
                         >
                           <span className={cn(
                             "w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5",
@@ -538,9 +560,29 @@ export default function Orgaos() {
                           )}>
                             {checked && <Check className="w-3 h-3 text-primary-foreground" />}
                           </span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium truncate">{c.nome}</p>
+                          <div className="flex-1 min-w-0 space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs font-semibold truncate">{c.nome}</p>
+                              {c.nivel && (
+                                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                  {c.nivel}
+                                </span>
+                              )}
+                            </div>
                             {c.cargo && <p className="text-[11px] text-muted-foreground truncate">{c.cargo}</p>}
+                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                              {c.telefone && (
+                                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                  <Phone className="w-2.5 h-2.5" />{c.telefone}
+                                  {c.whatsapp && <MessageCircle className="w-2.5 h-2.5 text-status-visited" />}
+                                </span>
+                              )}
+                              {c.email && (
+                                <span className="text-[10px] text-muted-foreground flex items-center gap-1 truncate max-w-full">
+                                  <Mail className="w-2.5 h-2.5" />{c.email}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </button>
                         {checked && (
