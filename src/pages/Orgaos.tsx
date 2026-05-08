@@ -376,7 +376,7 @@ export default function Orgaos() {
                       <p className="text-[11px] text-muted-foreground/70 italic">Nenhum contato vinculado</p>
                     ) : (
                       <ul className="space-y-1.5">
-                        {vincs.slice(0, 2).map((v) => {
+                        {vincs.slice(0, 6).map((v) => {
                           const c = contatoById.get(v.contato_id);
                           if (!c) return null;
                           const initials = c.nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
@@ -396,10 +396,10 @@ export default function Orgaos() {
                             </li>
                           );
                         })}
-                        {vincs.length > 2 && (
+                        {vincs.length > 6 && (
                           <li className="flex items-center gap-2 pt-0.5">
                             <div className="flex -space-x-1.5">
-                              {vincs.slice(2, 5).map((v) => {
+                              {vincs.slice(6, 9).map((v) => {
                                 const c = contatoById.get(v.contato_id);
                                 if (!c) return null;
                                 const initials = c.nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
@@ -415,7 +415,7 @@ export default function Orgaos() {
                               })}
                             </div>
                             <span className="text-[10px] font-medium text-primary">
-                              +{vincs.length - 2} · ver todos
+                              +{vincs.length - 6} · ver todos
                             </span>
                           </li>
                         )}
