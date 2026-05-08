@@ -9,6 +9,7 @@ import {
   Gift,
   BarChart3,
   DollarSign,
+  Settings,
   Leaf,
   Menu,
   X,
@@ -93,6 +94,7 @@ export default function AppLayout() {
     { to: "/kits", label: "Kits", icon: Gift },
     { to: "/inteligencia", label: "Inteligência", icon: BarChart3 },
     { to: "/financeiro", label: "Financeiro", icon: DollarSign },
+    { to: "/configuracoes", label: "Configurações", icon: Settings },
   ];
 
   const currentTitle = navItems.find(
