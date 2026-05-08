@@ -398,6 +398,153 @@ export type Database = {
         }
         Relationships: []
       }
+      usuarios: {
+        Row: {
+          ativo: boolean
+          cargo: string
+          cor: string
+          created_at: string
+          email: string
+          id: string
+          nome: string
+          telefone: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cargo?: string
+          cor?: string
+          created_at?: string
+          email?: string
+          id?: string
+          nome: string
+          telefone?: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cargo?: string
+          cor?: string
+          created_at?: string
+          email?: string
+          id?: string
+          nome?: string
+          telefone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      visita_checklist: {
+        Row: {
+          created_at: string
+          feito: boolean
+          id: string
+          item_key: string
+          ordem: number
+          step_id: number
+          step_titulo: string
+          texto: string
+          visita_id: string
+        }
+        Insert: {
+          created_at?: string
+          feito?: boolean
+          id?: string
+          item_key: string
+          ordem?: number
+          step_id: number
+          step_titulo: string
+          texto: string
+          visita_id: string
+        }
+        Update: {
+          created_at?: string
+          feito?: boolean
+          id?: string
+          item_key?: string
+          ordem?: number
+          step_id?: number
+          step_titulo?: string
+          texto?: string
+          visita_id?: string
+        }
+        Relationships: []
+      }
+      visita_kits: {
+        Row: {
+          created_at: string
+          custo_unitario_snapshot: number
+          id: string
+          kit_id: string
+          quantidade: number
+          visita_id: string
+        }
+        Insert: {
+          created_at?: string
+          custo_unitario_snapshot?: number
+          id?: string
+          kit_id: string
+          quantidade?: number
+          visita_id: string
+        }
+        Update: {
+          created_at?: string
+          custo_unitario_snapshot?: number
+          id?: string
+          kit_id?: string
+          quantidade?: number
+          visita_id?: string
+        }
+        Relationships: []
+      }
+      visitas: {
+        Row: {
+          created_at: string
+          custo_total: number
+          data_visita: string
+          hora: string | null
+          id: string
+          municipio_id: string | null
+          observacoes: string
+          orgao_id: string | null
+          progresso: number
+          responsavel_id: string | null
+          status: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custo_total?: number
+          data_visita?: string
+          hora?: string | null
+          id?: string
+          municipio_id?: string | null
+          observacoes?: string
+          orgao_id?: string | null
+          progresso?: number
+          responsavel_id?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custo_total?: number
+          data_visita?: string
+          hora?: string | null
+          id?: string
+          municipio_id?: string | null
+          observacoes?: string
+          orgao_id?: string | null
+          progresso?: number
+          responsavel_id?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
