@@ -67,6 +67,7 @@ export default function Orgaos() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [contatoSheetOpen, setContatoSheetOpen] = useState(false);
+  const [contatoSearch, setContatoSearch] = useState("");
 
   const { data: orgaos = [], isLoading } = useQuery({
     queryKey: ["orgaos"],
@@ -159,9 +160,18 @@ export default function Orgaos() {
   );
 
   const contatosDisponiveis = useMemo(() => {
-    if (!form.municipio_id) return contatos;
-    return contatos.filter((c) => !c.municipio_id || c.municipio_id === form.municipio_id);
-  }, [contatos, form.municipio_id]);
+    const base = !form.municipio_id
+      ? contatos
+      : contatos.filter((c) => !c.municipio_id || c.municipio_id === form.municipio_id);
+    const s = contatoSearch.trim().toLowerCase();
+    if (!s) return base;
+    return base.filter((c) =>
+      c.nome.toLowerCase().includes(s) ||
+      (c.cargo ?? "").toLowerCase().includes(s) ||
+      (c.email ?? "").toLowerCase().includes(s) ||
+      (c.telefone ?? "").toLowerCase().includes(s)
+    );
+  }, [contatos, form.municipio_id, contatoSearch]);
 
   // Quando muda o estado, limpa município se não pertencer
   useEffect(() => {
@@ -527,10 +537,23 @@ export default function Orgaos() {
                   </Button>
                 </div>
               </div>
+
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  value={contatoSearch}
+                  onChange={(e) => setContatoSearch(e.target.value)}
+                  placeholder="Buscar contato por nome, cargo, telefone ou email..."
+                  className="pl-8 h-8 text-xs"
+                />
+              </div>
+
               {contatosDisponiveis.length === 0 ? (
                 <div className="text-center py-4 bg-muted/30 rounded-lg space-y-2">
                   <p className="text-[11px] text-muted-foreground">
-                    Nenhum contato {form.municipio_id ? "neste município" : "cadastrado"}.
+                    {contatoSearch
+                      ? `Nenhum contato encontrado para "${contatoSearch}".`
+                      : `Nenhum contato ${form.municipio_id ? "neste município" : "cadastrado"}.`}
                   </p>
                   <Button
                     type="button"
