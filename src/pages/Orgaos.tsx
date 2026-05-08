@@ -375,29 +375,31 @@ export default function Orgaos() {
                     {vincs.length === 0 ? (
                       <p className="text-[11px] text-muted-foreground/70 italic">Nenhum contato vinculado</p>
                     ) : (
-                      <ul className="space-y-1.5">
-                        {vincs.slice(0, 6).map((v) => {
-                          const c = contatoById.get(v.contato_id);
-                          if (!c) return null;
-                          const initials = c.nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
-                          return (
-                            <li key={v.contato_id} className="flex items-center gap-2 min-w-0">
-                              <span className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-[9px] font-bold text-primary">
-                                {initials}
-                              </span>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-foreground truncate leading-tight">{c.nome}</p>
-                                {(v.papel || c.cargo) && (
-                                  <p className="text-[10px] text-muted-foreground truncate leading-tight">
-                                    {v.papel || c.cargo}
-                                  </p>
-                                )}
-                              </div>
-                            </li>
-                          );
-                        })}
+                      <>
+                        <ul className="grid grid-cols-3 gap-x-2 gap-y-1.5">
+                          {vincs.slice(0, 6).map((v) => {
+                            const c = contatoById.get(v.contato_id);
+                            if (!c) return null;
+                            const initials = c.nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+                            return (
+                              <li key={v.contato_id} className="flex items-center gap-1.5 min-w-0">
+                                <span className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-[9px] font-bold text-primary">
+                                  {initials}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-[11px] font-medium text-foreground truncate leading-tight">{c.nome}</p>
+                                  {(v.papel || c.cargo) && (
+                                    <p className="text-[9px] text-muted-foreground truncate leading-tight">
+                                      {v.papel || c.cargo}
+                                    </p>
+                                  )}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
                         {vincs.length > 6 && (
-                          <li className="flex items-center gap-2 pt-0.5">
+                          <div className="flex items-center gap-2 pt-2 mt-1 border-t border-border/30">
                             <div className="flex -space-x-1.5">
                               {vincs.slice(6, 9).map((v) => {
                                 const c = contatoById.get(v.contato_id);
@@ -407,7 +409,7 @@ export default function Orgaos() {
                                   <span
                                     key={v.contato_id}
                                     title={c.nome}
-                                    className="w-6 h-6 rounded-full bg-muted border-2 border-card flex items-center justify-center text-[9px] font-bold text-muted-foreground"
+                                    className="w-5 h-5 rounded-full bg-muted border-2 border-card flex items-center justify-center text-[8px] font-bold text-muted-foreground"
                                   >
                                     {initials}
                                   </span>
@@ -417,9 +419,9 @@ export default function Orgaos() {
                             <span className="text-[10px] font-medium text-primary">
                               +{vincs.length - 6} · ver todos
                             </span>
-                          </li>
+                          </div>
                         )}
-                      </ul>
+                      </>
                     )}
                   </div>
                   <div className="mt-3 pt-3 border-t border-border/40 flex items-center gap-2">
