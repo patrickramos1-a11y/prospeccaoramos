@@ -637,6 +637,9 @@ export default function Estoque() {
               <div className="space-y-1.5"><Label className="text-xs">Custo unit. (R$)</Label><Input type="number" min={0} step={0.01} value={editForm.custo_unitario} onChange={e => setEditForm(p => ({ ...p, custo_unitario: Number(e.target.value) }))} /></div>
               <div className="space-y-1.5"><Label className="text-xs">Fornecedor</Label><Input value={editForm.fornecedor} onChange={e => setEditForm(p => ({ ...p, fornecedor: e.target.value }))} /></div>
             </div>
+            {editingItem && (
+              <EstoqueDocumentosManager itemId={editingItem.id} onChange={fetchAll} />
+            )}
           </div>
           <SheetFooter className="gap-2">
             <Button variant="outline" onClick={() => setEditingItem(null)} className="flex-1">Cancelar</Button>
