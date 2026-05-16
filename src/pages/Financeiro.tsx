@@ -30,8 +30,8 @@ interface VisitaKit {
   kit_id: string;
   quantidade: number;
   custo_unitario_snapshot: number;
-  kits?: { nome: string } | null;
 }
+interface Kit { id: string; nome: string; }
 interface Municipio { id: string; nome: string; estado: string; }
 interface Usuario { id: string; nome: string; cor: string; }
 
