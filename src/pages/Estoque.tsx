@@ -472,9 +472,15 @@ export default function Estoque() {
                         <span className="text-[10px] text-muted-foreground">/ {item.ideal}</span>
                       </div>
                       <div className="flex items-center justify-between mt-2">
-                        <div className="flex gap-1">
+                        <div className="flex items-center gap-1">
                           <Badge variant="outline" className="text-[9px] px-1.5">{item.categoria}</Badge>
                           <span className="text-[10px] text-muted-foreground">R$ {item.custo_unitario.toFixed(2)}/{item.unidade}</span>
+                          {docCounts[item.id] > 0 && (
+                            <Badge variant="secondary" className="text-[9px] px-1.5 gap-0.5 bg-primary/10 text-primary">
+                              <Paperclip className="w-2.5 h-2.5" />
+                              {docCounts[item.id]}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex gap-0.5">
                           <button onClick={() => openEntrada(item.id)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-status-visited" title="Entrada"><ArrowDown className="w-3.5 h-3.5" /></button>
