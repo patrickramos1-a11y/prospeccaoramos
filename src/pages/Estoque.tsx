@@ -91,12 +91,19 @@ export default function Estoque() {
   }, []);
 
   const fetchAll = async () => {
-    const [itensRes, packsRes, packItensRes] = await Promise.all([
+    const [itensRes, packsRes, packItensRes, docsRes] = await Promise.all([
       supabase.from("estoque_itens").select("*").order("nome"),
       supabase.from("packs").select("*").order("nome"),
       supabase.from("pack_itens").select("*"),
+      supabase.from("estoque_itens_documentos").select("item_id"),
     ]);
     if (itensRes.data) setItens(itensRes.data);
+
+    const counts: Record<string, number> = {};
+    (docsRes.data || []).forEach((d: { item_id: string }) => {
+      counts[d.item_id] = (counts[d.item_id] || 0) + 1;
+    });
+    setDocCounts(counts);
 
     const packList = packsRes.data || [];
     const packItensList = packItensRes.data || [];
