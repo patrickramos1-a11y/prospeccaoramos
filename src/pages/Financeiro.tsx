@@ -239,7 +239,7 @@ export default function Financeiro() {
       .map((v) => {
         const m = v.municipio_id ? municipioMap.get(v.municipio_id) : null;
         const u = v.responsavel_id ? usuarioMap.get(v.responsavel_id) : null;
-        const kits = (kitsPorVisita.get(v.id) || []).map((k) => k.kits?.nome || "Kit").filter(Boolean);
+        const kitNames = (kitsPorVisita.get(v.id) || []).map((k) => kitMap.get(k.kit_id)?.nome || "Kit");
         return {
           id: v.id,
           municipio: m ? `${m.nome}/${m.estado}` : "—",
