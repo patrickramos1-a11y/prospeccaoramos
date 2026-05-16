@@ -59,6 +59,7 @@ const MESES = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "O
 export default function Financeiro() {
   const [visitas, setVisitas] = useState<Visita[]>([]);
   const [visitaKits, setVisitaKits] = useState<VisitaKit[]>([]);
+  const [kits, setKits] = useState<Kit[]>([]);
   const [municipios, setMunicipios] = useState<Municipio[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,19 +70,23 @@ export default function Financeiro() {
 
   useEffect(() => {
     (async () => {
-      const [vRes, vkRes, mRes, uRes] = await Promise.all([
+      const [vRes, vkRes, kRes, mRes, uRes] = await Promise.all([
         supabase.from("visitas").select("*").order("data_visita", { ascending: false }),
-        supabase.from("visita_kits").select("*, kits(nome)"),
+        supabase.from("visita_kits").select("*"),
+        supabase.from("kits").select("id,nome"),
         supabase.from("municipios").select("id,nome,estado"),
         supabase.from("usuarios").select("id,nome,cor"),
       ]);
       setVisitas((vRes.data as Visita[]) || []);
       setVisitaKits((vkRes.data as VisitaKit[]) || []);
+      setKits((kRes.data as Kit[]) || []);
       setMunicipios((mRes.data as Municipio[]) || []);
       setUsuarios((uRes.data as Usuario[]) || []);
       setLoading(false);
     })();
   }, []);
+
+  const kitMap = useMemo(() => new Map(kits.map((k) => [k.id, k])), [kits]);
 
   const municipioMap = useMemo(
     () => new Map(municipios.map((m) => [m.id, m])),
