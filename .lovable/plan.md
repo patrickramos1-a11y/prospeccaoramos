@@ -1,45 +1,55 @@
-## Anexos de documentos nos itens de estoque
+## Aba Inteligência — dashboard estratégico com dados reais
 
-Adicionar a possibilidade de anexar arquivos (artes, PDFs, imagens, etc.) a cada item do estoque, com download e gerenciamento direto pela aba de Estoque.
+Reescrever `src/pages/Inteligencia.tsx` para usar **somente** dados do banco (municípios, visitas, visita_kits, contatos, órgãos, usuários). Sem mock.
 
-### Caso de uso
-Itens como cartões de visita, folders e brindes personalizados precisam ter sua **arte/arquivo de impressão** vinculada. Assim, ao precisar reimprimir, basta abrir o item, baixar o arquivo original e enviar para a gráfica — sem depender de procurar em pastas externas.
+### Seções da página
 
-### Etapa 1 — Banco de dados
-- Criar bucket público `estoque-documentos` no storage (com políticas de leitura pública e escrita liberada).
-- Nova tabela `estoque_itens_documentos`:
-  - `item_id` (FK para `estoque_itens`)
-  - `nome` (nome amigável do arquivo)
-  - `arquivo_url` (URL pública no storage)
-  - `arquivo_path` (caminho no bucket, para permitir exclusão)
-  - `tipo_mime`, `tamanho_bytes`
-  - `descricao` (opcional, ex: "Arte frente v2", "Versão 2024")
-  - `created_at`
-- RLS liberada (seguindo padrão atual do projeto).
+**1. KPIs no topo (4 cards)**
+- Score médio dos municípios (0–20)
+- Total de visitas concluídas / planejadas
+- Custo total acumulado (soma de `visitas.custo_total`)
+- Custo médio por visita concluída
 
-### Etapa 2 — Formulário do item de estoque
-No sheet de cadastro/edição de item, adicionar uma seção **"Documentos / Artes"**:
-- Lista dos documentos já anexados, com:
-  - Ícone por tipo (PDF, imagem, etc.)
-  - Nome + tamanho
-  - Botões: **Baixar**, **Visualizar** (abre em nova aba), **Excluir**
-- Botão **"+ Anexar documento"** que abre seletor de arquivo (aceita PDF, PNG, JPG, AI, PSD, ZIP).
-- Campo opcional de descrição ao anexar.
-- Upload feito direto para o bucket via Supabase Storage SDK.
+**2. Distribuição por status das visitas** (donut)
+Planejadas, em andamento, concluídas — usando `visitas.status`.
 
-### Etapa 3 — Visualização na lista de estoque
-- Mostrar um pequeno indicador (ícone de clipe 📎 + contador) nos cards de itens que possuem documentos anexados, para identificar rapidamente quais itens já têm arte cadastrada.
+**3. Score estratégico — Top 10 municípios** (bar chart)
+`municipios.score` ordenado desc, top 10. Tooltip mostra Abertura/Potencial/Relacionamento/Facilidade.
+
+**4. Perfil médio territorial** (radar)
+Médias reais de `abertura`, `potencial`, `relacionamento`, `facilidade` em escala 0–5.
+
+**5. Mapa de calor por Estado/Região**
+- Grade de cards por UF com: nº municípios, score médio, visitas concluídas, custo total.
+- Cor de fundo do card proporcional ao score médio (verde mais forte = score maior) usando tokens semânticos (`bg-primary/X`).
+- Ordenado por score médio desc.
+
+**6. Análise financeira / ROI**
+- **Custo por município** (bar horizontal): soma de `visitas.custo_total` por município, top 8.
+- **Eficiência (custo × score)** (scatter): eixo X = custo total, eixo Y = score; cada ponto = município. Ajuda a ver municípios "caros e fracos" vs "baratos e fortes".
+- **Custo por tipo de visita** (bar): agrupado por `visitas.tipo`.
+
+**7. Ranking estratégico** (tabela)
+Mantém o ranking atual, mas alimentado pelo banco. Colunas: #, Município/UF, Score, Abertura, Potencial, Relacionamento, Custo total (calculado), Nº visitas, Prioridade.
+
+### Filtros no topo
+- Filtro por **Estado** (UF) — afeta todos os gráficos/tabela.
+- Filtro por **período** das visitas (Últimos 30d / 90d / 12m / Tudo).
+
+### Estados de vazio
+Cada card mostra placeholder ("Sem dados ainda") quando não houver registros, em vez de gráfico em branco.
 
 ### Detalhes técnicos
-- Componente novo: `src/components/EstoqueDocumentosManager.tsx` (lista + upload + exclusão).
-- Integrar no `EstoqueItemFormSheet` existente (ou equivalente — verificar arquivo atual).
-- Limite sugerido: 20MB por arquivo.
-- Ao excluir documento: remover do storage **e** do banco.
-- Nome do arquivo no storage: `{item_id}/{timestamp}-{nome-original}` para evitar colisões.
+- Usar `useEffect` + `supabase.from(...).select(...)` para buscar paralelamente: `municipios`, `visitas`, `visita_kits`, `contatos`.
+- Agregações feitas no cliente (volume baixo) com `useMemo`.
+- Recharts já está no projeto; reutilizar `BarChart`, `PieChart`, `RadarChart`, `ScatterChart`.
+- Cores via tokens HSL do design system (`--primary`, `--accent`, `--status-visited`, etc.).
+- Loading skeleton enquanto carrega.
+- Responsivo: 2 colunas no mobile (KPIs), 1 coluna por gráfico; 2 colunas no desktop (`lg:`).
 
-### Fora de escopo (pode ser feito depois)
-- Versionamento de artes (manter histórico de versões antigas).
-- Preview inline de PDF/AI dentro do sheet.
-- Compartilhamento de link público com expiração.
+### Fora de escopo
+- Recomendações com IA (deixado para uma próxima iteração).
+- Mapa geográfico real (SVG/Mapbox) — usaremos grade por UF.
+- Edição/CRUD nesta tela (apenas leitura analítica).
 
-Posso seguir com essa implementação?
+Posso seguir com a implementação?
