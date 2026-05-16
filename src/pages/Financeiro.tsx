@@ -247,11 +247,11 @@ export default function Financeiro() {
           tipo: v.tipo,
           responsavel: u?.nome || "—",
           cor: u?.cor || "hsl(var(--muted-foreground))",
-          kits,
+          kits: kitNames,
           custo: Number(v.custo_total),
         };
       });
-  }, [fVisitas, municipioMap, usuarioMap, kitsPorVisita]);
+  }, [fVisitas, municipioMap, usuarioMap, kitsPorVisita, kitMap]);
 
   if (loading) {
     return (
