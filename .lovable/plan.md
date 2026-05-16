@@ -1,55 +1,55 @@
-## Aba Inteligência — dashboard estratégico com dados reais
+## Aba Financeiro — controle real com dados do banco
 
-Reescrever `src/pages/Inteligencia.tsx` para usar **somente** dados do banco (municípios, visitas, visita_kits, contatos, órgãos, usuários). Sem mock.
+Reescrever `src/pages/Financeiro.tsx` para usar **somente** dados reais (visitas, visita_kits, kits, estoque_itens, municipios, usuarios). Sem mock.
 
-### Seções da página
+### Filtros (topo)
+- Período: 30d / 90d / 12m / Tudo (sobre `visitas.data_visita`)
+- Estado (UF) — via `municipios.estado`
+- Responsável — via `usuarios`
 
-**1. KPIs no topo (4 cards)**
-- Score médio dos municípios (0–20)
-- Total de visitas concluídas / planejadas
-- Custo total acumulado (soma de `visitas.custo_total`)
-- Custo médio por visita concluída
+### Seções
 
-**2. Distribuição por status das visitas** (donut)
-Planejadas, em andamento, concluídas — usando `visitas.status`.
+**1. KPIs (4 cards)**
+- Total Investido (soma `visitas.custo_total` no período)
+- Média por Visita (apenas concluídas com custo > 0)
+- Custo em Kits/Materiais (soma `visita_kits.quantidade × custo_unitario_snapshot`)
+- Visitas com custo lançado / total de visitas concluídas
 
-**3. Score estratégico — Top 10 municípios** (bar chart)
-`municipios.score` ordenado desc, top 10. Tooltip mostra Abertura/Potencial/Relacionamento/Facilidade.
+**2. Evolução mensal do investimento** (AreaChart)
+Agrupado por mês a partir de `visitas.data_visita`, últimos 12 meses (ou período filtrado).
 
-**4. Perfil médio territorial** (radar)
-Médias reais de `abertura`, `potencial`, `relacionamento`, `facilidade` em escala 0–5.
+**3. Custo por município** (BarChart horizontal, top 10)
+Soma de `custo_total` por município. Tooltip mostra nº de visitas.
 
-**5. Mapa de calor por Estado/Região**
-- Grade de cards por UF com: nº municípios, score médio, visitas concluídas, custo total.
-- Cor de fundo do card proporcional ao score médio (verde mais forte = score maior) usando tokens semânticos (`bg-primary/X`).
-- Ordenado por score médio desc.
+**4. Custo por tipo de visita** (PieChart/donut)
+Agrupado por `visitas.tipo`.
 
-**6. Análise financeira / ROI**
-- **Custo por município** (bar horizontal): soma de `visitas.custo_total` por município, top 8.
-- **Eficiência (custo × score)** (scatter): eixo X = custo total, eixo Y = score; cada ponto = município. Ajuda a ver municípios "caros e fracos" vs "baratos e fortes".
-- **Custo por tipo de visita** (bar): agrupado por `visitas.tipo`.
+**5. Custo por responsável** (BarChart)
+Soma por `responsavel_id` → join com `usuarios.nome` e cor.
 
-**7. Ranking estratégico** (tabela)
-Mantém o ranking atual, mas alimentado pelo banco. Colunas: #, Município/UF, Score, Abertura, Potencial, Relacionamento, Custo total (calculado), Nº visitas, Prioridade.
+**6. Tabela "Custo por Visita"**
+Colunas: Município/UF, Data, Tipo, Responsável, Kits usados (nomes via join), Custo Total. Ordenada por data desc. Linha final com total geral.
 
-### Filtros no topo
-- Filtro por **Estado** (UF) — afeta todos os gráficos/tabela.
-- Filtro por **período** das visitas (Últimos 30d / 90d / 12m / Tudo).
+**7. Composição dos custos** (barras de progresso)
+- Materiais/Kits (calculado de `visita_kits`)
+- Operação (custo_total − materiais)
+Percentuais reais sobre o total do período.
+
+**8. Alerta de visitas sem custo**
+Conta visitas com `status='concluída'` e `custo_total=0` no período; mostra card de aviso com CTA "ver visitas".
 
 ### Estados de vazio
-Cada card mostra placeholder ("Sem dados ainda") quando não houver registros, em vez de gráfico em branco.
+Cada card mostra placeholder "Sem dados no período" quando vazio.
 
-### Detalhes técnicos
-- Usar `useEffect` + `supabase.from(...).select(...)` para buscar paralelamente: `municipios`, `visitas`, `visita_kits`, `contatos`.
-- Agregações feitas no cliente (volume baixo) com `useMemo`.
-- Recharts já está no projeto; reutilizar `BarChart`, `PieChart`, `RadarChart`, `ScatterChart`.
-- Cores via tokens HSL do design system (`--primary`, `--accent`, `--status-visited`, etc.).
-- Loading skeleton enquanto carrega.
-- Responsivo: 2 colunas no mobile (KPIs), 1 coluna por gráfico; 2 colunas no desktop (`lg:`).
+### Técnico
+- Buscas paralelas: `visitas` (com `municipio_id`, `responsavel_id`), `visita_kits` (join `kits`), `municipios`, `usuarios`.
+- Agregações via `useMemo`.
+- Recharts + tokens HSL do design system (`--primary`, `--accent`, `--status-visited`, etc).
+- Loading skeleton; responsivo (mobile 1 col, desktop 2 cols).
 
 ### Fora de escopo
-- Recomendações com IA (deixado para uma próxima iteração).
-- Mapa geográfico real (SVG/Mapbox) — usaremos grade por UF.
-- Edição/CRUD nesta tela (apenas leitura analítica).
+- CRUD/edição de custos (feito no formulário de visita).
+- Orçamento/meta financeira.
+- Exportação para Excel/PDF.
 
 Posso seguir com a implementação?
