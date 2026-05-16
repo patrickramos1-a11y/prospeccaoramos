@@ -1,55 +1,48 @@
-## Aba Financeiro — controle real com dados do banco
+## Aba Dashboard — visão geral com dados reais
 
-Reescrever `src/pages/Financeiro.tsx` para usar **somente** dados reais (visitas, visita_kits, kits, estoque_itens, municipios, usuarios). Sem mock.
-
-### Filtros (topo)
-- Período: 30d / 90d / 12m / Tudo (sobre `visitas.data_visita`)
-- Estado (UF) — via `municipios.estado`
-- Responsável — via `usuarios`
+Reescrever `src/pages/Dashboard.tsx` substituindo todos os mocks (`MUNICIPIOS`, `VISITAS`, `ALERTAS`, `ESTOQUE_ITENS`, `KITS`) por dados reais do banco.
 
 ### Seções
 
-**1. KPIs (4 cards)**
-- Total Investido (soma `visitas.custo_total` no período)
-- Média por Visita (apenas concluídas com custo > 0)
-- Custo em Kits/Materiais (soma `visita_kits.quantidade × custo_unitario_snapshot`)
-- Visitas com custo lançado / total de visitas concluídas
+**1. Header**
+Título + subtítulo dinâmico ("Atualizado agora" com hora real).
 
-**2. Evolução mensal do investimento** (AreaChart)
-Agrupado por mês a partir de `visitas.data_visita`, últimos 12 meses (ou período filtrado).
+**2. Alertas críticos (banner vermelho, condicional)**
+Calculados em tempo real:
+- Visitas planejadas vencidas (data < hoje, status = planejada)
+- Estoque abaixo do mínimo
+- Municípios alta prioridade sem visita há > 30 dias
 
-**3. Custo por município** (BarChart horizontal, top 10)
-Soma de `custo_total` por município. Tooltip mostra nº de visitas.
+**3. KPIs (4 cards)**
+- Municípios cadastrados (+ "X visitados · Y em andamento")
+- Visitas realizadas no mês (+ planejadas/em andamento)
+- Contatos cadastrados (+ decisores via `nivel`)
+- Investimento total no mês (soma `custo_total`)
 
-**4. Custo por tipo de visita** (PieChart/donut)
-Agrupado por `visitas.tipo`.
+**4. Municípios por Status (col-span-2)**
+- Barra de progresso proporcional aos status reais
+- Grid 2x2 com contagens
+- Top 4 por score (lista com responsável, score, status)
 
-**5. Custo por responsável** (BarChart)
-Soma por `responsavel_id` → join com `usuarios.nome` e cor.
+**5. Próximas visitas (sidebar)**
+Top 4 com `status ∈ {planejada, em andamento}`, ordenadas por `data_visita asc`. Mostra município (via join), data e responsável.
 
-**6. Tabela "Custo por Visita"**
-Colunas: Município/UF, Data, Tipo, Responsável, Kits usados (nomes via join), Custo Total. Ordenada por data desc. Linha final com total geral.
+**6. Estoque crítico (sidebar)**
+Itens onde `saldo_atual < minimo`, com barra de progresso. Lista os 4 kits com mais montados (`kits.disponiveis`).
 
-**7. Composição dos custos** (barras de progresso)
-- Materiais/Kits (calculado de `visita_kits`)
-- Operação (custo_total − materiais)
-Percentuais reais sobre o total do período.
-
-**8. Alerta de visitas sem custo**
-Conta visitas com `status='concluída'` e `custo_total=0` no período; mostra card de aviso com CTA "ver visitas".
-
-### Estados de vazio
-Cada card mostra placeholder "Sem dados no período" quando vazio.
+**7. Alertas e pendências**
+Lista consolidada das pendências calculadas (3 categorias acima), com cor por urgência e link de ação para a rota correspondente.
 
 ### Técnico
-- Buscas paralelas: `visitas` (com `municipio_id`, `responsavel_id`), `visita_kits` (join `kits`), `municipios`, `usuarios`.
+- Buscas paralelas: `municipios`, `visitas`, `contatos`, `estoque_itens`, `kits`, `usuarios`.
 - Agregações via `useMemo`.
-- Recharts + tokens HSL do design system (`--primary`, `--accent`, `--status-visited`, etc).
-- Loading skeleton; responsivo (mobile 1 col, desktop 2 cols).
+- Loading skeleton.
+- Links reais (`<Link to="/municipios">`) substituindo `<a href>`.
+- Cores via tokens semânticos do design system.
+- Empty states em cada bloco quando vazio.
 
 ### Fora de escopo
-- CRUD/edição de custos (feito no formulário de visita).
-- Orçamento/meta financeira.
-- Exportação para Excel/PDF.
+- Sistema persistente de alertas em banco.
+- Gráficos avançados (mantidos para Inteligência).
 
 Posso seguir com a implementação?
