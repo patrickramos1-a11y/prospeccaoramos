@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
   Package, Plus, Search, AlertCircle, ArrowDown, ArrowUp,
-  TrendingDown, Boxes, Pencil, Trash2, X, Check, Layers, Image, Upload
+  TrendingDown, Boxes, Pencil, Trash2, X, Check, Layers, Image, Upload, Paperclip
 } from "lucide-react";
+import { EstoqueDocumentosManager } from "@/components/EstoqueDocumentosManager";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
@@ -49,6 +50,7 @@ const CATEGORIAS = ["Impresso", "Brinde", "Embalagem", "Papelaria"];
 export default function Estoque() {
   const [itens, setItens] = useState<EstoqueItem[]>([]);
   const [packs, setPacks] = useState<Pack[]>([]);
+  const [docCounts, setDocCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [categoriaFilter, setCategoriaFilter] = useState("todas");
@@ -89,12 +91,19 @@ export default function Estoque() {
   }, []);
 
   const fetchAll = async () => {
-    const [itensRes, packsRes, packItensRes] = await Promise.all([
+    const [itensRes, packsRes, packItensRes, docsRes] = await Promise.all([
       supabase.from("estoque_itens").select("*").order("nome"),
       supabase.from("packs").select("*").order("nome"),
       supabase.from("pack_itens").select("*"),
+      supabase.from("estoque_itens_documentos").select("item_id"),
     ]);
     if (itensRes.data) setItens(itensRes.data);
+
+    const counts: Record<string, number> = {};
+    (docsRes.data || []).forEach((d: { item_id: string }) => {
+      counts[d.item_id] = (counts[d.item_id] || 0) + 1;
+    });
+    setDocCounts(counts);
 
     const packList = packsRes.data || [];
     const packItensList = packItensRes.data || [];
@@ -463,9 +472,15 @@ export default function Estoque() {
                         <span className="text-[10px] text-muted-foreground">/ {item.ideal}</span>
                       </div>
                       <div className="flex items-center justify-between mt-2">
-                        <div className="flex gap-1">
+                        <div className="flex items-center gap-1">
                           <Badge variant="outline" className="text-[9px] px-1.5">{item.categoria}</Badge>
                           <span className="text-[10px] text-muted-foreground">R$ {item.custo_unitario.toFixed(2)}/{item.unidade}</span>
+                          {docCounts[item.id] > 0 && (
+                            <Badge variant="secondary" className="text-[9px] px-1.5 gap-0.5 bg-primary/10 text-primary">
+                              <Paperclip className="w-2.5 h-2.5" />
+                              {docCounts[item.id]}
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex gap-0.5">
                           <button onClick={() => openEntrada(item.id)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-status-visited" title="Entrada"><ArrowDown className="w-3.5 h-3.5" /></button>
@@ -622,6 +637,9 @@ export default function Estoque() {
               <div className="space-y-1.5"><Label className="text-xs">Custo unit. (R$)</Label><Input type="number" min={0} step={0.01} value={editForm.custo_unitario} onChange={e => setEditForm(p => ({ ...p, custo_unitario: Number(e.target.value) }))} /></div>
               <div className="space-y-1.5"><Label className="text-xs">Fornecedor</Label><Input value={editForm.fornecedor} onChange={e => setEditForm(p => ({ ...p, fornecedor: e.target.value }))} /></div>
             </div>
+            {editingItem && (
+              <EstoqueDocumentosManager itemId={editingItem.id} onChange={fetchAll} />
+            )}
           </div>
           <SheetFooter className="gap-2">
             <Button variant="outline" onClick={() => setEditingItem(null)} className="flex-1">Cancelar</Button>
