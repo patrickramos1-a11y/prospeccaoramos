@@ -50,6 +50,7 @@ const CATEGORIAS = ["Impresso", "Brinde", "Embalagem", "Papelaria"];
 export default function Estoque() {
   const [itens, setItens] = useState<EstoqueItem[]>([]);
   const [packs, setPacks] = useState<Pack[]>([]);
+  const [docCounts, setDocCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [categoriaFilter, setCategoriaFilter] = useState("todas");
