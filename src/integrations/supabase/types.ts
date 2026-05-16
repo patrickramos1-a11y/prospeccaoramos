@@ -109,6 +109,50 @@ export type Database = {
         }
         Relationships: []
       }
+      estoque_itens_documentos: {
+        Row: {
+          arquivo_path: string
+          arquivo_url: string
+          created_at: string
+          descricao: string
+          id: string
+          item_id: string
+          nome: string
+          tamanho_bytes: number
+          tipo_mime: string
+        }
+        Insert: {
+          arquivo_path: string
+          arquivo_url: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          item_id: string
+          nome: string
+          tamanho_bytes?: number
+          tipo_mime?: string
+        }
+        Update: {
+          arquivo_path?: string
+          arquivo_url?: string
+          created_at?: string
+          descricao?: string
+          id?: string
+          item_id?: string
+          nome?: string
+          tamanho_bytes?: number
+          tipo_mime?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_itens_documentos_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_itens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kit_itens: {
         Row: {
           created_at: string
