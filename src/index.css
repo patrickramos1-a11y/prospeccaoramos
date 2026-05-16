@@ -116,15 +116,77 @@
     @apply border-border;
   }
 
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
     font-family: 'Inter', system-ui, sans-serif;
     font-feature-settings: 'cv11', 'ss01';
+    overscroll-behavior-y: none;
   }
 
   h1, h2, h3 {
     font-family: 'Syne', sans-serif;
+    letter-spacing: -0.01em;
   }
+
+  /* iOS safe area utility variables */
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --bottom-nav-h: 64px;
+  }
+
+  /* Better focus visible */
+  *:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(var(--ring) / 0.5);
+    border-radius: 6px;
+  }
+
+  /* Minimum tap target on mobile */
+  @media (max-width: 768px) {
+    button, a, [role="button"] {
+      min-height: 36px;
+    }
+  }
+}
+
+@layer utilities {
+  .surface-card {
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--border) / 0.7);
+    box-shadow: var(--shadow-sm);
+  }
+  .surface-elevated {
+    background: var(--gradient-card);
+    border: 1px solid hsl(var(--border) / 0.6);
+    box-shadow: var(--shadow-md);
+  }
+  .glass {
+    background: hsl(var(--card) / 0.75);
+    backdrop-filter: blur(10px) saturate(140%);
+    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
+  .text-gradient {
+    background: var(--gradient-hero);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+  .safe-bottom { padding-bottom: var(--safe-bottom); }
+  .safe-top { padding-top: var(--safe-top); }
+  .pb-nav { padding-bottom: calc(var(--bottom-nav-h) + var(--safe-bottom) + 8px); }
+  @media (min-width: 1024px) {
+    .pb-nav { padding-bottom: 0; }
+  }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; }
 }
 
 /* =====================================================

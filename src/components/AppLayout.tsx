@@ -1,24 +1,14 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import {
-  LayoutDashboard,
-  MapPin,
-  CalendarCheck,
-  Users,
-  Landmark,
-  Package,
-  Gift,
-  BarChart3,
-  DollarSign,
-  Settings,
-  Leaf,
-  Menu,
-  X,
-  ChevronRight,
+  LayoutDashboard, MapPin, CalendarCheck, Landmark, Package, Gift,
+  BarChart3, DollarSign, Settings, Leaf, ChevronLeft, ChevronRight, X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { MobileBottomNav } from "./MobileBottomNav";
 
 type NavItem = {
   to: string;
@@ -29,54 +19,53 @@ type NavItem = {
   alert?: boolean;
 };
 
+type NavSection = { label: string; items: NavItem[] };
+
+const STORAGE_KEY = "ramos:sidebar-collapsed";
+
 export default function AppLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(STORAGE_KEY) === "1";
+  });
+
+  useEffect(() => {
+    window.localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0");
+  }, [collapsed]);
+
+  // Fechar sheet ao trocar de rota
+  useEffect(() => { setMobileMenuOpen(false); }, [location.pathname]);
 
   const { data: municipiosCount = 0 } = useQuery({
     queryKey: ["sidebar", "municipios-count"],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from("municipios")
-        .select("*", { count: "exact", head: true });
-      if (error) throw error;
+      const { count } = await supabase.from("municipios").select("*", { count: "exact", head: true });
       return count ?? 0;
     },
     staleTime: 30_000,
   });
-
   const { data: contatosCount = 0 } = useQuery({
     queryKey: ["sidebar", "contatos-count"],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from("contatos")
-        .select("*", { count: "exact", head: true });
-      if (error) throw error;
+      const { count } = await supabase.from("contatos").select("*", { count: "exact", head: true });
       return count ?? 0;
     },
     staleTime: 30_000,
   });
-
   const { data: orgaosCount = 0 } = useQuery({
     queryKey: ["sidebar", "orgaos-count"],
     queryFn: async () => {
-      const { count, error } = await supabase
-        .from("orgaos")
-        .select("*", { count: "exact", head: true });
-      if (error) throw error;
+      const { count } = await supabase.from("orgaos").select("*", { count: "exact", head: true });
       return count ?? 0;
     },
     staleTime: 30_000,
   });
-
   const { data: estoqueAlerta = false } = useQuery({
     queryKey: ["sidebar", "estoque-alerta"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("estoque_itens")
-        .select("saldo_atual, minimo")
-        .limit(1000);
-      if (error) throw error;
+      const { data } = await supabase.from("estoque_itens").select("saldo_atual, minimo").limit(1000);
       return (data ?? []).some(
         (i: { saldo_atual: number | null; minimo: number | null }) =>
           (i.saldo_atual ?? 0) <= (i.minimo ?? 0),
@@ -85,131 +74,209 @@ export default function AppLayout() {
     staleTime: 30_000,
   });
 
-  const navItems: NavItem[] = [
-    { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-    { to: "/municipios", label: "Municípios", icon: MapPin, badge: municipiosCount || undefined },
-    { to: "/orgaos", label: "Órgãos & Contatos", icon: Landmark, badge: (orgaosCount + contatosCount) || undefined },
-    { to: "/visitas", label: "Visitas", icon: CalendarCheck },
-    { to: "/estoque", label: "Estoque", icon: Package, alert: estoqueAlerta },
-    { to: "/kits", label: "Kits", icon: Gift },
-    { to: "/inteligencia", label: "Inteligência", icon: BarChart3 },
-    { to: "/financeiro", label: "Financeiro", icon: DollarSign },
-    { to: "/configuracoes", label: "Configurações", icon: Settings },
+  const sections: NavSection[] = [
+    {
+      label: "Operação",
+      items: [
+        { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
+        { to: "/municipios", label: "Municípios", icon: MapPin, badge: municipiosCount || undefined },
+        { to: "/orgaos", label: "Órgãos & Contatos", icon: Landmark, badge: (orgaosCount + contatosCount) || undefined },
+        { to: "/visitas", label: "Visitas", icon: CalendarCheck },
+      ],
+    },
+    {
+      label: "Materiais",
+      items: [
+        { to: "/estoque", label: "Estoque", icon: Package, alert: estoqueAlerta },
+        { to: "/kits", label: "Kits", icon: Gift },
+      ],
+    },
+    {
+      label: "Inteligência",
+      items: [
+        { to: "/inteligencia", label: "Inteligência", icon: BarChart3 },
+        { to: "/financeiro", label: "Financeiro", icon: DollarSign },
+      ],
+    },
+    {
+      label: "Sistema",
+      items: [
+        { to: "/configuracoes", label: "Configurações", icon: Settings },
+      ],
+    },
   ];
 
-  const currentTitle = navItems.find(
+  const allItems = sections.flatMap((s) => s.items);
+  const currentTitle = allItems.find(
     (n) => n.end ? location.pathname === n.to : location.pathname.startsWith(n.to)
   )?.label ?? "Ramos";
 
-  return (
-    <div className="flex h-screen bg-background overflow-hidden">
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-foreground/40 backdrop-blur-sm lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
+  const renderNavItem = (item: NavItem, mini = false) => (
+    <NavLink
+      key={item.to}
+      to={item.to}
+      end={item.end}
+      title={mini ? item.label : undefined}
+      className={({ isActive }) =>
+        cn(
+          "relative flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150 group",
+          mini ? "justify-center px-2 py-2.5" : "px-3 py-2.5",
+          isActive
+            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+            : "text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-sidebar-accent/70"
+        )
+      }
+    >
+      {({ isActive }) => (
+        <>
+          {isActive && !mini && (
+            <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-sidebar-primary-foreground/60" />
+          )}
+          <item.icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive ? "opacity-100" : "opacity-80 group-hover:opacity-100")} />
+          {!mini && (
+            <>
+              <span className="flex-1 truncate">{item.label}</span>
+              {item.badge && (
+                <span className={cn(
+                  "text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
+                  isActive ? "bg-sidebar-primary-foreground/20 text-sidebar-primary-foreground" : "bg-sidebar-accent text-sidebar-accent-foreground"
+                )}>
+                  {item.badge}
+                </span>
+              )}
+              {item.alert && !item.badge && (
+                <span className="w-2 h-2 rounded-full bg-destructive flex-shrink-0 animate-pulse" />
+              )}
+            </>
+          )}
+          {mini && item.alert && (
+            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-destructive" />
+          )}
+        </>
       )}
+    </NavLink>
+  );
 
-      {/* Sidebar */}
+  return (
+    <div className="flex h-[100dvh] bg-background overflow-hidden">
+      {/* Sidebar desktop */}
       <aside
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-50 w-64 flex flex-col",
-          "bg-sidebar transition-transform duration-300 ease-in-out",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          "hidden lg:flex flex-col bg-sidebar border-r border-sidebar-border/40",
+          "transition-[width] duration-300 ease-out flex-shrink-0",
+          collapsed ? "w-[68px]" : "w-64"
         )}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-sidebar-border">
-          <div className="w-9 h-9 rounded-xl bg-sidebar-primary flex items-center justify-center flex-shrink-0">
+        <div className={cn(
+          "flex items-center gap-3 border-b border-sidebar-border/60",
+          collapsed ? "justify-center px-2 py-4" : "px-5 py-5"
+        )}>
+          <div className="w-9 h-9 rounded-xl bg-sidebar-primary flex items-center justify-center flex-shrink-0 shadow-sm">
             <Leaf className="w-5 h-5 text-sidebar-primary-foreground" />
           </div>
-          <div>
-            <p className="font-display font-bold text-sidebar-foreground text-base leading-tight">Ramos</p>
-            <p className="text-[11px] text-sidebar-foreground/50 leading-tight">Prospecção Ambiental</p>
-          </div>
-          <button
-            className="ml-auto lg:hidden text-sidebar-foreground/60 hover:text-sidebar-foreground"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <X className="w-5 h-5" />
-          </button>
+          {!collapsed && (
+            <div className="min-w-0 flex-1">
+              <p className="font-display font-bold text-sidebar-foreground text-base leading-tight">Ramos</p>
+              <p className="text-[11px] text-sidebar-foreground/50 leading-tight">Prospecção Ambiental</p>
+            </div>
+          )}
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 group",
-                  isActive
-                    ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-                    : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                )
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <item.icon className={cn("w-4.5 h-4.5 flex-shrink-0", isActive ? "opacity-100" : "opacity-70 group-hover:opacity-100")} />
-                  <span className="flex-1 truncate">{item.label}</span>
-                  {item.badge && (
-                    <span className={cn(
-                      "text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
-                      isActive ? "bg-sidebar-primary-foreground/20 text-sidebar-primary-foreground" : "bg-sidebar-accent text-sidebar-accent-foreground"
-                    )}>
-                      {item.badge}
-                    </span>
-                  )}
-                  {item.alert && !item.badge && (
-                    <span className="w-2 h-2 rounded-full bg-destructive flex-shrink-0" />
-                  )}
-                </>
+        {/* Nav agrupada */}
+        <nav className="flex-1 overflow-y-auto py-3 px-2 no-scrollbar">
+          {sections.map((section, idx) => (
+            <div key={section.label} className={cn(idx > 0 && "mt-4")}>
+              {!collapsed && (
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 px-3 mb-1.5">
+                  {section.label}
+                </p>
               )}
-            </NavLink>
+              {collapsed && idx > 0 && (
+                <div className="mx-3 mb-2 border-t border-sidebar-border/40" />
+              )}
+              <div className="space-y-0.5">
+                {section.items.map((item) => renderNavItem(item, collapsed))}
+              </div>
+            </div>
           ))}
         </nav>
 
-        {/* Footer */}
-        <div className="px-4 py-4 border-t border-sidebar-border">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center">
+        {/* Toggle + footer */}
+        <div className="border-t border-sidebar-border/60">
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
+            className={cn(
+              "w-full flex items-center gap-2 px-3 py-2.5 text-xs text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/70 transition-colors",
+              collapsed && "justify-center"
+            )}
+          >
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+            {!collapsed && <span>Recolher</span>}
+          </button>
+          <div className={cn("flex items-center gap-3 px-4 py-3", collapsed && "justify-center px-2")}>
+            <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center flex-shrink-0">
               <span className="text-xs font-bold text-sidebar-accent-foreground">GE</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-sidebar-foreground truncate">Gestor</p>
-              <p className="text-[10px] text-sidebar-foreground/45 truncate">ramos@consultoria.com</p>
-            </div>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-sidebar-foreground truncate">Gestor</p>
+                <p className="text-[10px] text-sidebar-foreground/45 truncate">ramos@consultoria.com</p>
+              </div>
+            )}
           </div>
         </div>
       </aside>
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top bar */}
-        <header className="flex items-center gap-4 px-4 lg:px-6 h-14 border-b border-border bg-card/80 backdrop-blur-sm flex-shrink-0">
-          <button
-            className="lg:hidden text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => setSidebarOpen(true)}
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className="hidden sm:inline">Ramos</span>
-            <ChevronRight className="hidden sm:block w-3.5 h-3.5" />
-            <span className="text-foreground font-semibold font-display">{currentTitle}</span>
+      {/* Mobile "Mais" sheet */}
+      <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+        <SheetContent side="left" className="w-[280px] p-0 bg-sidebar border-sidebar-border/40">
+          <SheetHeader className="px-5 py-4 border-b border-sidebar-border/60">
+            <SheetTitle className="flex items-center gap-3 text-left">
+              <div className="w-9 h-9 rounded-xl bg-sidebar-primary flex items-center justify-center">
+                <Leaf className="w-5 h-5 text-sidebar-primary-foreground" />
+              </div>
+              <div>
+                <p className="font-display font-bold text-sidebar-foreground text-base leading-tight">Ramos</p>
+                <p className="text-[11px] text-sidebar-foreground/50 font-normal leading-tight">Prospecção Ambiental</p>
+              </div>
+            </SheetTitle>
+          </SheetHeader>
+          <nav className="py-3 px-2 overflow-y-auto h-[calc(100dvh-80px)]">
+            {sections.map((section, idx) => (
+              <div key={section.label} className={cn(idx > 0 && "mt-4")}>
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 px-3 mb-1.5">
+                  {section.label}
+                </p>
+                <div className="space-y-0.5">
+                  {section.items.map((item) => renderNavItem(item))}
+                </div>
+              </div>
+            ))}
+          </nav>
+        </SheetContent>
+      </Sheet>
+
+      {/* Main */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Topbar */}
+        <header className="sticky top-0 z-30 flex items-center gap-3 px-4 lg:px-6 h-14 border-b border-border/60 glass flex-shrink-0">
+          <div className="flex items-center gap-2 text-sm min-w-0">
+            <span className="hidden sm:inline text-muted-foreground">Ramos</span>
+            <ChevronRight className="hidden sm:block w-3.5 h-3.5 text-muted-foreground/60" />
+            <span className="text-foreground font-semibold font-display truncate">{currentTitle}</span>
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
+        {/* Conteúdo */}
+        <main className="flex-1 overflow-y-auto pb-nav">
           <Outlet />
         </main>
       </div>
+
+      {/* Bottom nav mobile */}
+      <MobileBottomNav onOpenMenu={() => setMobileMenuOpen(true)} hasEstoqueAlert={estoqueAlerta} />
     </div>
   );
 }
