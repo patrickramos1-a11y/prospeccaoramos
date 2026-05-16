@@ -1,85 +1,45 @@
-## Cadastro de Visitas + Gestão de Usuários
+## Anexos de documentos nos itens de estoque
 
-Atualmente a página `Visitas.tsx` usa dados mockados (`VISITAS` de `mockData`). Vamos persistir tudo no Lovable Cloud, criar o fluxo de cadastro completo e introduzir a tela de Configurações com gestão de usuários (responsáveis).
+Adicionar a possibilidade de anexar arquivos (artes, PDFs, imagens, etc.) a cada item do estoque, com download e gerenciamento direto pela aba de Estoque.
 
----
+### Caso de uso
+Itens como cartões de visita, folders e brindes personalizados precisam ter sua **arte/arquivo de impressão** vinculada. Assim, ao precisar reimprimir, basta abrir o item, baixar o arquivo original e enviar para a gráfica — sem depender de procurar em pastas externas.
 
-### Etapa 1 — Banco de dados (migrations)
+### Etapa 1 — Banco de dados
+- Criar bucket público `estoque-documentos` no storage (com políticas de leitura pública e escrita liberada).
+- Nova tabela `estoque_itens_documentos`:
+  - `item_id` (FK para `estoque_itens`)
+  - `nome` (nome amigável do arquivo)
+  - `arquivo_url` (URL pública no storage)
+  - `arquivo_path` (caminho no bucket, para permitir exclusão)
+  - `tipo_mime`, `tamanho_bytes`
+  - `descricao` (opcional, ex: "Arte frente v2", "Versão 2024")
+  - `created_at`
+- RLS liberada (seguindo padrão atual do projeto).
 
-**1.1 Tabela `usuarios`** (responsáveis pelas visitas — perfis internos da equipe, não auth.users)
-- `nome`, `email`, `telefone`, `cargo`, `cor` (para avatar), `ativo` (boolean)
+### Etapa 2 — Formulário do item de estoque
+No sheet de cadastro/edição de item, adicionar uma seção **"Documentos / Artes"**:
+- Lista dos documentos já anexados, com:
+  - Ícone por tipo (PDF, imagem, etc.)
+  - Nome + tamanho
+  - Botões: **Baixar**, **Visualizar** (abre em nova aba), **Excluir**
+- Botão **"+ Anexar documento"** que abre seletor de arquivo (aceita PDF, PNG, JPG, AI, PSD, ZIP).
+- Campo opcional de descrição ao anexar.
+- Upload feito direto para o bucket via Supabase Storage SDK.
 
-**1.2 Tabela `visitas`**
-- `municipio_id` (FK lógica → municipios)
-- `orgao_id` (FK lógica → orgaos)
-- `responsavel_id` (FK lógica → usuarios)
-- `data_visita` (date), `hora` (time, opcional)
-- `tipo` (text: "Primeira abordagem", "Coleta documental", "Follow-up", "Entrega")
-- `status` (text: "planejada", "em_andamento", "concluida", "cancelada")
-- `observacoes` (text)
-- `custo_total` (numeric, calculado a partir dos kits)
-- `progresso` (int, % checklist)
+### Etapa 3 — Visualização na lista de estoque
+- Mostrar um pequeno indicador (ícone de clipe 📎 + contador) nos cards de itens que possuem documentos anexados, para identificar rapidamente quais itens já têm arte cadastrada.
 
-**1.3 Tabela `visita_kits`** (relação N:N visita ↔ kits, com snapshot de custo)
-- `visita_id`, `kit_id`, `quantidade`, `custo_unitario_snapshot`
+### Detalhes técnicos
+- Componente novo: `src/components/EstoqueDocumentosManager.tsx` (lista + upload + exclusão).
+- Integrar no `EstoqueItemFormSheet` existente (ou equivalente — verificar arquivo atual).
+- Limite sugerido: 20MB por arquivo.
+- Ao excluir documento: remover do storage **e** do banco.
+- Nome do arquivo no storage: `{item_id}/{timestamp}-{nome-original}` para evitar colisões.
 
-**1.4 Tabela `visita_checklist`** (estado do checklist por visita)
-- `visita_id`, `step_id`, `item_id`, `texto`, `feito` (bool)
+### Fora de escopo (pode ser feito depois)
+- Versionamento de artes (manter histórico de versões antigas).
+- Preview inline de PDF/AI dentro do sheet.
+- Compartilhamento de link público com expiração.
 
-RLS: liberada (`true`) seguindo padrão atual do projeto. Triggers `updated_at`.
-
----
-
-### Etapa 2 — Página de Configurações (nova)
-
-- Nova rota `/configuracoes` + item no `Sidebar` (ícone Settings, abaixo de Financeiro).
-- Página `Configuracoes.tsx` com abas (tabs):
-  - **Usuários** (foco desta entrega): listagem, busca, botão "Novo Usuário", editar/desativar.
-  - Espaço para futuras abas (Preferências, Integrações).
-- Componente `UsuarioFormSheet.tsx` (Sheet lateral) — mesmo padrão do `ContatoFormSheet`: nome, email, telefone, cargo, cor, ativo.
-
----
-
-### Etapa 3 — Cadastro de Visitas
-
-**3.1 Componente `VisitaFormSheet.tsx`** (Sheet lateral, mobile-first), campos em ordem:
-
-1. **Estado** (select — derivado dos estados existentes em `municipios`)
-2. **Município** (select filtrado pelo estado)
-3. **Órgão** (select filtrado pelo município escolhido; mostra nome + sigla)
-4. **Tipo de visita** (select)
-5. **Data** (date picker) + **Hora** (opcional)
-6. **Responsável** (select de `usuarios` ativos; com link "Cadastrar responsável" → abre `UsuarioFormSheet`)
-7. **Kits** (multi-seleção com quantidade): lista de `kits` ativos com `disponiveis > 0`, mostrando custo unitário (calculado a partir de `kit_itens` × `estoque_itens.custo_unitario`). Exibe **custo total da visita** somando linha a linha.
-8. **Observações**
-
-Validação com `zod`. Ao salvar: insert em `visitas` + insert em `visita_kits` (com snapshot de custo) + seed do `visita_checklist` a partir do template `CHECKLIST_STEPS` atual.
-
-**3.2 Refatorar `Visitas.tsx`**
-- Remover dependência de `mockData.VISITAS`; carregar via `supabase.from('visitas').select(...)` com joins (município, órgão, responsável).
-- Botão "+ Nova Visita" abre `VisitaFormSheet`.
-- Painel de detalhes à direita: ler checklist da tabela, atualizar `feito` no banco, recalcular `progresso` na visita.
-- Mostrar custo total e kits vinculados.
-- Agrupamento por status (planejada / em andamento / concluída) mantido.
-
----
-
-### Etapa 4 — Ajustes complementares
-
-- Atualizar `Sidebar` (badge de contagem para Visitas se aplicável).
-- Custo das visitas alimenta a página **Financeiro** (consulta agregada simples).
-- Garantir realtime (opcional) na tabela `visitas`.
-
----
-
-### Ordem de execução e pontos de aprovação
-
-1. Migration (Etapa 1) — requer aprovação do usuário.
-2. Configurações + CRUD de Usuários (Etapa 2).
-3. Cadastro de Visitas + refator da página (Etapa 3).
-4. Refinos (Etapa 4).
-
-### Perguntas antes de começar
-
-- **Responsáveis = usuários com login no sistema?** A proposta acima trata responsáveis como **perfis internos** (tabela `usuarios` simples, sem auth). Se você quiser que cada responsável faça login (Lovable Cloud Auth com email/senha + Google), isso vira uma etapa extra (auth + tabela `profiles` + roles). Posso seguir do jeito simples ou já incluir login?
-- **Custo do kit**: calcular dinamicamente a partir dos itens do kit, ou adicionar campo `custo_unitario` direto na tabela `kits`?
+Posso seguir com essa implementação?
