@@ -3,8 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
   Package, Plus, Search, AlertCircle, ArrowDown, ArrowUp,
-  TrendingDown, Boxes, Pencil, Trash2, X, Check, Layers, Image, Upload
+  TrendingDown, Boxes, Pencil, Trash2, X, Check, Layers, Image, Upload, Paperclip
 } from "lucide-react";
+import { EstoqueDocumentosManager } from "@/components/EstoqueDocumentosManager";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
