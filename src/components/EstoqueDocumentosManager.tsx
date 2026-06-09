@@ -18,7 +18,8 @@ interface Documento {
   created_at: string;
 }
 
-const MAX_BYTES = 20 * 1024 * 1024;
+const MAX_FILE_MB = 100;
+const MAX_BYTES = MAX_FILE_MB * 1024 * 1024;
 
 function formatBytes(b: number) {
   if (b < 1024) return `${b} B`;
@@ -53,7 +54,7 @@ export function EstoqueDocumentosManager({ itemId, onChange }: { itemId: string;
   const handleFile = async (file: File | null) => {
     if (!file) return;
     if (file.size > MAX_BYTES) {
-      toast({ title: "Arquivo muito grande", description: "Limite de 20MB.", variant: "destructive" });
+      toast({ title: "Arquivo muito grande", description: `Limite de ${MAX_FILE_MB}MB.`, variant: "destructive" });
       return;
     }
     setUploading(true);
@@ -142,7 +143,7 @@ export function EstoqueDocumentosManager({ itemId, onChange }: { itemId: string;
             }}
           />
         </label>
-        <p className="text-[10px] text-muted-foreground">Máx. 20MB por arquivo</p>
+        <p className="text-[10px] text-muted-foreground">Máx. {MAX_FILE_MB}MB por arquivo</p>
       </div>
 
       {docs.length > 0 ? (

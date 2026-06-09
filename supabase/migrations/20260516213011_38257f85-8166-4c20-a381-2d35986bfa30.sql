@@ -1,7 +1,7 @@
 
 -- Bucket público para documentos do estoque
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('estoque-documentos', 'estoque-documentos', true)
+INSERT INTO storage.buckets (id, name, public, file_size_limit)
+VALUES ('estoque-documentos', 'estoque-documentos', true, 104857600)
 ON CONFLICT (id) DO NOTHING;
 
 -- Políticas no bucket
