@@ -101,7 +101,7 @@ export default function ContatoFormSheet({ open, onOpenChange, initial, defaultM
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-background">
         <SheetHeader>
           <SheetTitle>{editingId ? "Editar contato" : "Novo contato"}</SheetTitle>
           <SheetDescription>

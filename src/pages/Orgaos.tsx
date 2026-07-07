@@ -292,7 +292,7 @@ export default function Orgaos() {
   const totalVinculos = vinculosAll.length;
 
   return (
-    <div className="p-4 lg:p-6 space-y-5 animate-fade-in">
+    <div className="page-shell space-y-5 animate-fade-in">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold">Órgãos Municipais</h1>
@@ -305,13 +305,13 @@ export default function Orgaos() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { label: "Órgãos", count: orgaos.length, color: "text-primary bg-primary/8 border-primary/15" },
           { label: "Municípios atendidos", count: new Set(orgaos.map((o) => o.municipio_id).filter(Boolean)).size, color: "text-accent-foreground bg-accent/8 border-accent/20" },
           { label: "Vínculos", count: totalVinculos, color: "text-status-visited bg-status-visited/8 border-status-visited/15" },
         ].map((s) => (
-          <Card key={s.label} className={cn("shadow-sm border", s.color.split(" ").at(-1))}>
+          <Card key={s.label} className={cn("metric-card border", s.color.split(" ").at(-1))}>
             <CardContent className="p-3 text-center">
               <p className={cn("font-display font-bold text-2xl", s.color.split(" ")[0])}>{s.count}</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">{s.label}</p>
@@ -340,7 +340,7 @@ export default function Orgaos() {
               <Card
                 key={o.id}
                 onClick={() => setDetailOrgaoId(o.id)}
-                className="shadow-sm border-border/60 hover:shadow-md hover:border-primary/40 transition-all cursor-pointer group"
+                className="surface-panel hover:shadow-md hover:border-primary/40 transition-all cursor-pointer group"
               >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
@@ -465,7 +465,7 @@ export default function Orgaos() {
           if (!o) { setEditingId(null); setForm(emptyForm); }
         }}
       >
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-background">
           <SheetHeader>
             <SheetTitle>{editingId ? "Editar órgão" : "Novo órgão"}</SheetTitle>
             <SheetDescription>
@@ -580,7 +580,7 @@ export default function Orgaos() {
               </div>
 
               {contatosDisponiveis.length === 0 ? (
-                <div className="text-center py-4 bg-muted/30 rounded-lg space-y-2">
+                <div className="text-center py-4 bg-secondary/45 border border-border/60 rounded-lg space-y-2">
                   <p className="text-[11px] text-muted-foreground">
                     {contatoSearch
                       ? `Nenhum contato encontrado para "${contatoSearch}".`
@@ -761,7 +761,7 @@ export default function Orgaos() {
                       </h3>
                     </div>
                     {vincs.length === 0 ? (
-                      <p className="text-xs text-muted-foreground italic py-4 text-center bg-muted/30 rounded-lg">
+                      <p className="text-xs text-muted-foreground italic py-4 text-center bg-secondary/45 rounded-lg border border-border/60">
                         Nenhum contato vinculado a este órgão.
                       </p>
                     ) : (

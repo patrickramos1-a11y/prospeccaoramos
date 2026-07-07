@@ -58,7 +58,7 @@ export function EstoqueDocumentosManager({ itemId, onChange }: { itemId: string;
       return;
     }
     setUploading(true);
-    const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+    const safeName = file.name.replace(/[^\w.-]+/g, "_");
     const path = `${itemId}/${Date.now()}-${safeName}`;
     const { error: upErr } = await supabase.storage.from("estoque-documentos").upload(path, file);
     if (upErr) {
@@ -113,7 +113,7 @@ export function EstoqueDocumentosManager({ itemId, onChange }: { itemId: string;
   };
 
   return (
-    <div className="border border-border rounded-xl p-3 space-y-3">
+    <div className="surface-panel rounded-lg p-3 space-y-3">
       <div className="flex items-center gap-2">
         <Paperclip className="w-3.5 h-3.5 text-muted-foreground" />
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -128,7 +128,7 @@ export function EstoqueDocumentosManager({ itemId, onChange }: { itemId: string;
           onChange={(e) => setDescricao(e.target.value)}
           className="text-xs h-9"
         />
-        <label className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-border cursor-pointer hover:bg-muted/50 transition-colors text-xs text-muted-foreground">
+        <label className="flex items-center justify-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-border/80 bg-card/70 cursor-pointer hover:bg-secondary/60 transition-colors text-xs text-muted-foreground">
           <Upload className="w-3.5 h-3.5" />
           {uploading ? "Enviando..." : "Anexar documento (PDF, imagem, ZIP, etc.)"}
           <input

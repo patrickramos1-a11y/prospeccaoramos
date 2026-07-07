@@ -295,13 +295,13 @@ export default function Kits() {
   }
 
   return (
-    <div className="p-4 space-y-4 animate-fade-in pb-24">
-      <div>
+    <div className="page-shell space-y-4 animate-fade-in pb-24">
+      <div className="surface-panel rounded-lg p-4 sm:p-5">
         <h1 className="font-display text-xl font-bold">Kits e Montagem</h1>
         <p className="text-xs text-muted-foreground mt-0.5">Modelos de kits — monte independente do estoque</p>
       </div>
 
-      <div className="flex gap-2">
+      <div className="toolbar rounded-lg p-2 flex gap-2">
         <Button variant="outline" size="sm" className="flex-1 text-xs"
           onClick={() => { setSelectedKitId(kits[0]?.id ?? null); setShowMontarLote(true); }}
           disabled={kits.length === 0}>
@@ -313,15 +313,15 @@ export default function Kits() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
         {[
           { label: "Modelos", value: kits.length, icon: Gift, color: "text-primary bg-primary/10" },
           { label: "Montáveis", value: kitsMontaveis, icon: CheckCircle, color: kitsMontaveis > 0 ? "text-status-visited bg-status-visited/10" : "text-muted-foreground bg-muted" },
           { label: "Disponíveis", value: totalDisponiveis, icon: Package, color: "text-accent-foreground bg-accent/10" },
           { label: "Utilizados", value: totalUsados, icon: Layers, color: "text-status-planned bg-status-planned/10" },
         ].map((stat) => (
-          <div key={stat.label} className="flex items-center gap-2.5 p-3 rounded-xl border border-border bg-card">
-            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", stat.color)}>
+          <div key={stat.label} className="metric-card flex items-center gap-2.5 p-3 rounded-lg">
+            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 kpi-icon", stat.color)}>
               <stat.icon className="w-4 h-4" />
             </div>
             <div>
@@ -341,12 +341,12 @@ export default function Kits() {
           const isExpanded = expandedKitId === kit.id;
 
           return (
-            <Card key={kit.id} className={cn("shadow-sm overflow-hidden", availability.canBuild ? "border-status-visited/30" : "border-border/60")}>
+            <Card key={kit.id} className={cn("surface-panel overflow-hidden", availability.canBuild ? "border-status-visited/30" : "border-border/60")}>
               <button
                 className="w-full p-4 flex items-center gap-3 text-left"
                 onClick={() => setExpandedKitId(isExpanded ? null : kit.id)}
               >
-                <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+                <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 kpi-icon",
                   availability.canBuild ? "bg-status-visited/10" : "bg-destructive/10")}>
                   {availability.canBuild ? (
                     <CheckIcon className="w-5 h-5 text-status-visited" />
@@ -471,7 +471,7 @@ export default function Kits() {
 
       {/* Sheet: Novo Kit */}
       <Sheet open={showNewKit} onOpenChange={setShowNewKit}>
-        <SheetContent side="bottom" className="h-[92vh] overflow-y-auto rounded-t-2xl">
+        <SheetContent side="bottom" className="h-[92vh] overflow-y-auto rounded-t-lg bg-background">
           <SheetHeader className="pb-4">
             <SheetTitle className="font-display text-lg">Novo Modelo de Kit</SheetTitle>
           </SheetHeader>
@@ -489,7 +489,7 @@ export default function Kits() {
               <Textarea placeholder="Descreva o objetivo deste kit..." value={newKit.descricao} onChange={e => setNewKit(p => ({ ...p, descricao: e.target.value }))} rows={2} />
             </div>
 
-            <div className="border border-border rounded-xl p-3 space-y-3">
+            <div className="surface-panel rounded-lg p-3 space-y-3">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Itens do Kit</p>
               <p className="text-[10px] text-muted-foreground">Selecione itens ou packs — não precisa ter saldo, o kit é um modelo.</p>
 
@@ -556,7 +556,7 @@ export default function Kits() {
 
       {/* Sheet: Adicionar Item a Kit Existente */}
       <Sheet open={showAddItem} onOpenChange={setShowAddItem}>
-        <SheetContent side="bottom" className="rounded-t-2xl">
+        <SheetContent side="bottom" className="rounded-t-lg bg-background">
           <SheetHeader><SheetTitle className="font-display text-lg">Adicionar Item</SheetTitle></SheetHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -588,7 +588,7 @@ export default function Kits() {
 
       {/* Sheet: Montar Lote */}
       <Sheet open={showMontarLote} onOpenChange={setShowMontarLote}>
-        <SheetContent side="bottom" className="rounded-t-2xl">
+        <SheetContent side="bottom" className="rounded-t-lg bg-background">
           <SheetHeader><SheetTitle className="font-display text-lg">Montar Lote</SheetTitle></SheetHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -644,7 +644,7 @@ export default function Kits() {
 
       {/* Sheet: Editar Kit */}
       <Sheet open={!!editingKit} onOpenChange={(open) => !open && setEditingKit(null)}>
-        <SheetContent side="bottom" className="rounded-t-2xl">
+        <SheetContent side="bottom" className="rounded-t-lg bg-background">
           <SheetHeader><SheetTitle className="font-display text-lg">Editar Kit</SheetTitle></SheetHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2"><Label className="text-xs">Nome</Label><Input value={editForm.nome} onChange={e => setEditForm(p => ({ ...p, nome: e.target.value }))} /></div>

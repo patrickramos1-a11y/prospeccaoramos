@@ -1,8 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Syne:wght@600;700;800&display=swap');
 
 /* =====================================================
    SISTEMA RAMOS — Design System
@@ -12,10 +12,10 @@
 @layer base {
   :root {
     /* Brand - Verde Mata / Terra */
-    --background: 42 20% 97%;
+    --background: 42 28% 96%;
     --foreground: 160 30% 8%;
 
-    --card: 0 0% 100%;
+    --card: 42 34% 99%;
     --card-foreground: 160 30% 8%;
 
     --popover: 0 0% 100%;
@@ -26,12 +26,12 @@
     --primary-foreground: 42 30% 97%;
 
     /* Bege terra */
-    --secondary: 38 25% 92%;
+    --secondary: 42 30% 91%;
     --secondary-foreground: 155 45% 22%;
 
     /* Tons neutros */
-    --muted: 40 15% 93%;
-    --muted-foreground: 155 10% 42%;
+    --muted: 44 18% 90%;
+    --muted-foreground: 158 12% 38%;
 
     /* Accent âmbar */
     --accent: 38 85% 52%;
@@ -40,8 +40,8 @@
     --destructive: 4 72% 52%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 38 15% 88%;
-    --input: 38 15% 88%;
+    --border: 42 18% 84%;
+    --input: 42 18% 84%;
     --ring: 155 45% 22%;
 
     --radius: 0.6rem;
@@ -59,24 +59,26 @@
     --score-low: 4 60% 55%;
 
     /* Sidebar */
-    --sidebar-background: 155 40% 13%;
+    --sidebar-background: 156 42% 12%;
     --sidebar-foreground: 42 25% 88%;
     --sidebar-primary: 38 85% 60%;
     --sidebar-primary-foreground: 155 40% 10%;
-    --sidebar-accent: 155 35% 20%;
+    --sidebar-accent: 155 36% 18%;
     --sidebar-accent-foreground: 42 25% 92%;
     --sidebar-border: 155 30% 18%;
     --sidebar-ring: 38 85% 60%;
 
     /* Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(155 45% 22%) 0%, hsl(165 40% 28%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(42 20% 97%) 100%);
-    --gradient-accent: linear-gradient(135deg, hsl(38 85% 52%) 0%, hsl(32 90% 48%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(155 45% 20%) 0%, hsl(164 38% 28%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(42 38% 99%) 0%, hsl(43 26% 96%) 100%);
+    --gradient-accent: linear-gradient(135deg, hsl(38 85% 52%) 0%, hsl(34 82% 47%) 100%);
+    --gradient-shell: linear-gradient(180deg, hsl(42 28% 96%) 0%, hsl(45 24% 93%) 100%);
+    --gradient-panel: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(43 24% 97%) 100%);
 
     /* Shadows */
-    --shadow-sm: 0 1px 3px hsl(155 30% 12% / 0.06), 0 1px 2px hsl(155 30% 12% / 0.04);
-    --shadow-md: 0 4px 12px hsl(155 30% 12% / 0.08), 0 2px 4px hsl(155 30% 12% / 0.05);
-    --shadow-lg: 0 12px 32px hsl(155 30% 12% / 0.12), 0 4px 8px hsl(155 30% 12% / 0.06);
+    --shadow-sm: 0 1px 2px hsl(155 30% 12% / 0.05), 0 1px 1px hsl(155 30% 12% / 0.04);
+    --shadow-md: 0 8px 24px hsl(155 30% 12% / 0.08), 0 2px 8px hsl(155 30% 12% / 0.05);
+    --shadow-lg: 0 18px 44px hsl(155 30% 12% / 0.12), 0 6px 18px hsl(155 30% 12% / 0.07);
     --shadow-glow: 0 0 0 3px hsl(155 45% 22% / 0.15);
   }
 
@@ -126,6 +128,7 @@
     font-family: 'Inter', system-ui, sans-serif;
     font-feature-settings: 'cv11', 'ss01';
     overscroll-behavior-y: none;
+    background: var(--gradient-shell);
   }
 
   h1, h2, h3 {
@@ -156,20 +159,87 @@
 }
 
 @layer utilities {
+  .app-shell {
+    background:
+      linear-gradient(180deg, hsl(42 32% 97%) 0%, hsl(44 24% 93%) 100%);
+  }
+  .page-shell {
+    width: 100%;
+    max-width: 1480px;
+    margin-inline: auto;
+    padding: 1rem;
+  }
+  @media (min-width: 768px) {
+    .page-shell { padding: 1.25rem; }
+  }
+  @media (min-width: 1024px) {
+    .page-shell { padding: 1.5rem; }
+  }
   .surface-card {
-    background: hsl(var(--card));
-    border: 1px solid hsl(var(--border) / 0.7);
+    background: hsl(var(--card) / 0.96);
+    border: 1px solid hsl(var(--border) / 0.72);
     box-shadow: var(--shadow-sm);
   }
   .surface-elevated {
     background: var(--gradient-card);
-    border: 1px solid hsl(var(--border) / 0.6);
+    border: 1px solid hsl(var(--border) / 0.72);
     box-shadow: var(--shadow-md);
   }
+  .surface-panel {
+    background: var(--gradient-panel);
+    border: 1px solid hsl(var(--border) / 0.72);
+    box-shadow: var(--shadow-sm);
+  }
+  .metric-card {
+    background: linear-gradient(145deg, hsl(var(--card)) 0%, hsl(var(--secondary) / 0.5) 100%);
+    border: 1px solid hsl(var(--border) / 0.72);
+    box-shadow: var(--shadow-sm);
+  }
+  .metric-card:hover {
+    border-color: hsl(var(--primary) / 0.2);
+    box-shadow: var(--shadow-md);
+  }
+  .toolbar {
+    background: hsl(var(--card) / 0.82);
+    border: 1px solid hsl(var(--border) / 0.72);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: blur(12px) saturate(135%);
+    -webkit-backdrop-filter: blur(12px) saturate(135%);
+  }
+  .list-panel {
+    background: linear-gradient(180deg, hsl(var(--card)) 0%, hsl(var(--secondary) / 0.35) 100%);
+    border-color: hsl(var(--border) / 0.72);
+  }
+  .detail-panel {
+    background: linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--secondary) / 0.45) 100%);
+  }
+  .data-row {
+    background: hsl(var(--card) / 0.78);
+    border-color: hsl(var(--border) / 0.58);
+  }
+  .data-row:hover {
+    background: hsl(var(--secondary) / 0.55);
+  }
+  .section-label {
+    color: hsl(var(--muted-foreground));
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .soft-badge {
+    background: hsl(var(--secondary) / 0.72);
+    color: hsl(var(--secondary-foreground));
+    border: 1px solid hsl(var(--border) / 0.72);
+  }
+  .kpi-icon {
+    border: 1px solid hsl(var(--border) / 0.55);
+    box-shadow: inset 0 1px 0 hsl(0 0% 100% / 0.6);
+  }
   .glass {
-    background: hsl(var(--card) / 0.75);
-    backdrop-filter: blur(10px) saturate(140%);
-    -webkit-backdrop-filter: blur(10px) saturate(140%);
+    background: hsl(var(--card) / 0.82);
+    backdrop-filter: blur(14px) saturate(145%);
+    -webkit-backdrop-filter: blur(14px) saturate(145%);
     border: 1px solid hsl(var(--border) / 0.6);
   }
   .text-gradient {

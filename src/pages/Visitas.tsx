@@ -186,10 +186,10 @@ export default function Visitas() {
   return (
     <div className="flex h-full animate-fade-in">
       <div className={cn(
-        "flex flex-col border-r border-border bg-card",
+        "list-panel flex flex-col border-r",
         selected ? "hidden lg:flex lg:w-[400px] flex-shrink-0" : "flex-1"
       )}>
-        <div className="px-4 lg:px-5 py-4 border-b border-border">
+        <div className="px-4 lg:px-5 py-4 border-b border-border/70 bg-card/55">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="font-display text-xl font-bold">Visitas</h1>
@@ -202,7 +202,7 @@ export default function Visitas() {
               <Plus className="w-3.5 h-3.5" /> Nova Visita
             </button>
           </div>
-          <div className="relative">
+          <div className="toolbar rounded-lg p-2 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
               placeholder="Buscar visita..."
@@ -227,7 +227,7 @@ export default function Visitas() {
               const cfg = STATUS_CFG[statusGroup];
               return (
                 <div key={statusGroup}>
-                  <div className="px-4 py-2 bg-muted/40 border-b border-border/40">
+                  <div className="px-4 py-2 bg-secondary/55 border-b border-border/50">
                     <span className={cn("text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border", cfg.cls)}>
                       {cfg.label} · {group.length}
                     </span>
@@ -239,8 +239,8 @@ export default function Visitas() {
                         key={v.id}
                         onClick={() => setSelected(v.id)}
                         className={cn(
-                          "w-full text-left px-4 lg:px-5 py-3.5 border-b border-border/50 hover:bg-muted/40 transition-colors",
-                          selected === v.id && "bg-primary/5 border-l-2 border-l-primary"
+                          "data-row w-full text-left px-4 lg:px-5 py-3.5 border-b transition-colors",
+                          selected === v.id && "bg-primary/7 border-l-2 border-l-primary"
                         )}
                       >
                         <div className="flex items-start gap-3">
@@ -281,8 +281,8 @@ export default function Visitas() {
       </div>
 
       {selected && selectedV ? (
-        <div className="flex-1 overflow-y-auto bg-background animate-slide-in">
-          <div className="sticky top-0 z-10 bg-card/90 backdrop-blur-sm border-b border-border px-4 lg:px-6 py-3 flex items-center gap-3">
+        <div className="detail-panel flex-1 overflow-y-auto animate-slide-in">
+          <div className="sticky top-0 z-10 bg-card/90 backdrop-blur-sm border-b border-border/70 px-4 lg:px-6 py-3 flex items-center gap-3">
             <button onClick={() => setSelected(null)} className="lg:hidden text-muted-foreground hover:text-foreground">← Voltar</button>
             <div className="flex-1">
               <h2 className="font-display font-bold text-base">{selectedV.municipio?.nome ?? "—"}</h2>
@@ -295,23 +295,23 @@ export default function Visitas() {
             </span>
           </div>
 
-          <div className="p-4 lg:p-6 space-y-5">
+          <div className="page-shell space-y-5">
             <div className="grid grid-cols-3 gap-3">
-              <Card className="shadow-sm">
+              <Card className="metric-card">
                 <CardContent className="p-3 text-center">
                   <User className="w-4 h-4 text-primary mx-auto mb-1" />
                   <p className="text-xs font-semibold text-foreground truncate">{selectedV.responsavel?.nome ?? "—"}</p>
                   <p className="text-[10px] text-muted-foreground">Responsável</p>
                 </CardContent>
               </Card>
-              <Card className="shadow-sm">
+              <Card className="metric-card">
                 <CardContent className="p-3 text-center">
                   <Package className="w-4 h-4 text-accent mx-auto mb-1" />
                   <p className="text-xs font-semibold text-foreground">{visitaKits.length || "—"}</p>
                   <p className="text-[10px] text-muted-foreground">Kits</p>
                 </CardContent>
               </Card>
-              <Card className="shadow-sm">
+              <Card className="metric-card">
                 <CardContent className="p-3 text-center">
                   <DollarSign className="w-4 h-4 text-status-planned mx-auto mb-1" />
                   <p className="text-xs font-semibold text-foreground">R$ {Number(selectedV.custo_total).toFixed(2)}</p>
@@ -321,7 +321,7 @@ export default function Visitas() {
             </div>
 
             {selectedV.orgao && (
-              <Card className="shadow-sm">
+              <Card className="surface-panel">
                 <CardContent className="p-4">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Órgão</p>
                   <p className="text-sm">{selectedV.orgao.sigla ? `${selectedV.orgao.sigla} - ` : ""}{selectedV.orgao.nome}</p>
@@ -330,7 +330,7 @@ export default function Visitas() {
             )}
 
             {visitaKits.length > 0 && (
-              <Card className="shadow-sm">
+              <Card className="surface-panel">
                 <CardContent className="p-4">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Materiais e Kits</p>
                   <div className="space-y-1.5">
@@ -350,7 +350,7 @@ export default function Visitas() {
             )}
 
             {selectedV.observacoes && (
-              <Card className="shadow-sm">
+              <Card className="surface-panel">
                 <CardContent className="p-4">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Observações</p>
                   <p className="text-sm whitespace-pre-wrap">{selectedV.observacoes}</p>
@@ -358,7 +358,7 @@ export default function Visitas() {
               </Card>
             )}
 
-            <Card className="shadow-sm">
+            <Card className="surface-elevated">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Roteiro de Campo</p>
@@ -429,7 +429,7 @@ export default function Visitas() {
           </div>
         </div>
       ) : (
-        <div className="hidden lg:flex flex-1 items-center justify-center text-muted-foreground bg-muted/20">
+        <div className="hidden lg:flex flex-1 items-center justify-center text-muted-foreground detail-panel">
           <div className="text-center">
             <CalendarCheck className="w-12 h-12 mx-auto mb-3 opacity-20" />
             <p className="text-sm font-medium">Selecione uma visita</p>

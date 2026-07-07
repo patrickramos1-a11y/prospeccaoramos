@@ -58,12 +58,12 @@ export default function Configuracoes() {
 
   return (
     <div className="flex flex-col h-full animate-fade-in">
-      <div className="px-4 lg:px-6 py-4 border-b border-border bg-card">
+      <div className="px-4 lg:px-6 py-4 border-b border-border/70 bg-card/70">
         <h1 className="font-display text-xl font-bold">Configurações</h1>
         <p className="text-xs text-muted-foreground">Gerencie usuários e preferências do sistema</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 lg:p-6">
+      <div className="flex-1 overflow-y-auto page-shell">
         <Tabs defaultValue="usuarios" className="w-full">
           <TabsList className="mb-4">
             <TabsTrigger value="usuarios">Usuários</TabsTrigger>
@@ -97,7 +97,7 @@ export default function Configuracoes() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {filtered.map((u) => (
-                  <Card key={u.id} className={cn("shadow-sm transition-opacity", !u.ativo && "opacity-60")}>
+                  <Card key={u.id} className={cn("surface-panel transition-opacity", !u.ativo && "opacity-60")}>
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         <div

@@ -255,7 +255,7 @@ export default function Financeiro() {
 
   if (loading) {
     return (
-      <div className="p-4 lg:p-6 space-y-4">
+      <div className="page-shell space-y-4">
         <Skeleton className="h-10 w-64" />
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
@@ -274,7 +274,7 @@ export default function Financeiro() {
   ];
 
   return (
-    <div className="p-4 lg:p-6 space-y-5 animate-fade-in">
+    <div className="page-shell space-y-5 animate-fade-in">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold">Controle Financeiro</h1>
@@ -323,7 +323,7 @@ export default function Financeiro() {
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {kpis.map((kpi) => (
-          <Card key={kpi.label} className="shadow-sm">
+          <Card key={kpi.label} className="metric-card">
             <CardContent className="p-4 flex items-center gap-3">
               <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", kpi.color)}>
                 <kpi.icon className="w-4 h-4" />
@@ -349,7 +349,7 @@ export default function Financeiro() {
       )}
 
       {/* Evolução mensal */}
-      <Card className="shadow-sm">
+      <Card className="surface-elevated">
         <CardHeader className="pb-2">
           <CardTitle className="font-display text-base">Evolução do Investimento Mensal</CardTitle>
         </CardHeader>
@@ -381,7 +381,7 @@ export default function Financeiro() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Custo por município */}
-        <Card className="shadow-sm">
+        <Card className="surface-panel">
           <CardHeader className="pb-2">
             <CardTitle className="font-display text-base">Custo por Município (Top 10)</CardTitle>
           </CardHeader>
@@ -406,7 +406,7 @@ export default function Financeiro() {
         </Card>
 
         {/* Custo por tipo */}
-        <Card className="shadow-sm">
+        <Card className="surface-panel">
           <CardHeader className="pb-2">
             <CardTitle className="font-display text-base">Custo por Tipo de Visita</CardTitle>
           </CardHeader>
@@ -440,7 +440,7 @@ export default function Financeiro() {
       </div>
 
       {/* Custo por responsável */}
-      <Card className="shadow-sm">
+      <Card className="surface-panel">
         <CardHeader className="pb-2">
           <CardTitle className="font-display text-base">Custo por Responsável</CardTitle>
         </CardHeader>
@@ -466,7 +466,7 @@ export default function Financeiro() {
       </Card>
 
       {/* Composição */}
-      <Card className="shadow-sm">
+      <Card className="surface-panel">
         <CardHeader className="pb-3">
           <CardTitle className="font-display text-base">Composição dos Custos</CardTitle>
         </CardHeader>
@@ -498,7 +498,7 @@ export default function Financeiro() {
       </Card>
 
       {/* Tabela */}
-      <Card className="shadow-sm">
+      <Card className="surface-panel">
         <CardHeader className="pb-3">
           <CardTitle className="font-display text-base">Custo por Visita</CardTitle>
         </CardHeader>
@@ -506,10 +506,10 @@ export default function Financeiro() {
           {linhasTabela.length === 0 ? (
             <p className="text-xs text-muted-foreground py-8 text-center">Nenhuma visita com custo lançado no período</p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-border/60">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-border bg-muted/30">
+                  <tr className="border-b border-border bg-secondary/60">
                     {["Município", "Data", "Tipo", "Responsável", "Kits Usados", "Custo Total"].map((h) => (
                       <th key={h} className="text-left px-3 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
                         {h}
@@ -542,7 +542,7 @@ export default function Financeiro() {
                       </td>
                     </tr>
                   ))}
-                  <tr className="bg-muted/30 border-t-2 border-border">
+                  <tr className="bg-secondary/60 border-t-2 border-border">
                     <td colSpan={5} className="px-3 py-2.5 text-xs font-bold text-foreground uppercase tracking-wide">
                       Total Geral
                     </td>

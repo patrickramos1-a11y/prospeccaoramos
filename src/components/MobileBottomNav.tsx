@@ -21,11 +21,11 @@ export function MobileBottomNav({ onOpenMenu, hasEstoqueAlert }: MobileBottomNav
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-40 lg:hidden glass border-t border-border/70 safe-bottom"
+      className="fixed bottom-0 inset-x-0 z-40 lg:hidden glass border-t border-border/75 safe-bottom shadow-lg"
       style={{ height: "calc(var(--bottom-nav-h) + var(--safe-bottom))" }}
       aria-label="Navegação principal"
     >
-      <div className="grid grid-cols-5 h-16 max-w-md mx-auto">
+      <div className="grid grid-cols-5 h-16 max-w-md mx-auto px-1">
         {items.map((item) => {
           const isActive = item.end ? pathname === item.to : pathname.startsWith(item.to);
           const showAlert = item.alertKey === "estoque" && hasEstoqueAlert;
@@ -35,12 +35,12 @@ export function MobileBottomNav({ onOpenMenu, hasEstoqueAlert }: MobileBottomNav
               to={item.to}
               end={item.end}
               className={cn(
-                "relative flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors",
-                isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                "relative flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors rounded-lg",
+                isActive ? "text-primary bg-primary/7" : "text-muted-foreground hover:text-foreground hover:bg-secondary/70"
               )}
             >
               {isActive && (
-                <span className="absolute top-0 inset-x-3 h-0.5 rounded-full bg-primary" />
+                <span className="absolute top-0 inset-x-4 h-0.5 rounded-full bg-primary" />
               )}
               <div className="relative">
                 <item.icon className={cn("w-5 h-5 transition-transform", isActive && "scale-110")} />
@@ -55,7 +55,7 @@ export function MobileBottomNav({ onOpenMenu, hasEstoqueAlert }: MobileBottomNav
         <button
           onClick={onOpenMenu}
           aria-label="Abrir menu completo"
-          className="relative flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+          className="relative flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/70 transition-colors rounded-lg"
         >
           <Menu className="w-5 h-5" />
           <span>Mais</span>

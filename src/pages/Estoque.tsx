@@ -326,7 +326,7 @@ export default function Estoque() {
   );
 
   const PackItemsEditor = () => (
-    <div className="border border-border rounded-xl p-3 space-y-3">
+    <div className="surface-panel rounded-lg p-3 space-y-3">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Itens do Pack</p>
       <div className="space-y-2">
         <Select value={packNewItemId} onValueChange={setPackNewItemId}>
@@ -369,14 +369,14 @@ export default function Estoque() {
   );
 
   return (
-    <div className="p-4 space-y-4 animate-fade-in pb-24">
-      <div>
+    <div className="page-shell space-y-4 animate-fade-in pb-24">
+      <div className="surface-panel rounded-lg p-4 sm:p-5">
         <h1 className="font-display text-xl font-bold">Estoque de Materiais</h1>
         <p className="text-xs text-muted-foreground mt-0.5">Brindes, papelaria, embalagens e packs</p>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-muted p-1 rounded-lg">
+      <div className="toolbar flex gap-1 p-1 rounded-lg">
         <button className={cn("flex-1 text-xs font-medium py-2 rounded-md transition-colors", activeTab === "itens" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")} onClick={() => setActiveTab("itens")}>
           <Package className="w-3.5 h-3.5 inline mr-1" /> Itens ({itens.length})
         </button>
@@ -386,7 +386,7 @@ export default function Estoque() {
       </div>
 
       {/* Actions */}
-      <div className="flex gap-2">
+      <div className="toolbar rounded-lg p-2 flex gap-2">
         {activeTab === "itens" ? (
           <>
             <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => { if (itens[0]) openEntrada(itens[0].id); }}>
@@ -405,16 +405,16 @@ export default function Estoque() {
 
       {/* KPIs */}
       {activeTab === "itens" && (
-        <div className="grid grid-cols-3 gap-2">
-          <div className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-card">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <div className="metric-card flex items-center gap-2 p-3 rounded-lg">
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center"><Boxes className="w-4 h-4 text-primary" /></div>
             <div><p className="font-bold text-lg text-foreground leading-none">{totalItens}</p><p className="text-[9px] text-muted-foreground mt-0.5">Tipos</p></div>
           </div>
-          <div className={cn("flex items-center gap-2 p-2.5 rounded-xl border bg-card", alertaCount > 0 ? "border-destructive/30" : "border-border")}>
+          <div className={cn("metric-card flex items-center gap-2 p-3 rounded-lg", alertaCount > 0 ? "border-destructive/30" : "border-border")}>
             <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", alertaCount > 0 ? "bg-destructive/10" : "bg-muted")}><AlertCircle className={cn("w-4 h-4", alertaCount > 0 ? "text-destructive" : "text-muted-foreground")} /></div>
             <div><p className={cn("font-bold text-lg leading-none", alertaCount > 0 ? "text-destructive" : "text-foreground")}>{alertaCount}</p><p className="text-[9px] text-muted-foreground mt-0.5">Alertas</p></div>
           </div>
-          <div className="flex items-center gap-2 p-2.5 rounded-xl border border-border bg-card">
+          <div className="metric-card flex items-center gap-2 p-3 rounded-lg">
             <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center"><TrendingDown className="w-4 h-4 text-accent-foreground" /></div>
             <div><p className="font-bold text-base text-foreground leading-none">R${valorTotal.toFixed(0)}</p><p className="text-[9px] text-muted-foreground mt-0.5">Valor</p></div>
           </div>
@@ -422,7 +422,7 @@ export default function Estoque() {
       )}
 
       {/* Search */}
-      <div className="flex gap-2">
+      <div className="toolbar rounded-lg p-2 flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input placeholder={activeTab === "itens" ? "Buscar item..." : "Buscar pack..."} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
@@ -442,7 +442,7 @@ export default function Estoque() {
             const st = getEstoqueStatus(item);
             const pct = item.ideal > 0 ? Math.min((item.saldo_atual / item.ideal) * 100, 100) : 0;
             return (
-              <Card key={item.id} className="shadow-sm border-border/60">
+              <Card key={item.id} className="surface-panel">
                 <CardContent className="p-3">
                   <div className="flex items-start gap-3">
                     {item.imagem_url ? (
@@ -511,7 +511,7 @@ export default function Estoque() {
       {activeTab === "packs" && (
         <div className="space-y-2">
           {filteredPacks.map((pack) => (
-            <Card key={pack.id} className="shadow-sm border-border/60">
+            <Card key={pack.id} className="surface-panel">
               <CardContent className="p-3">
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -556,7 +556,7 @@ export default function Estoque() {
 
       {/* Sheet: Novo Item */}
       <Sheet open={showNewItem} onOpenChange={setShowNewItem}>
-        <SheetContent side="bottom" className="h-[85vh] overflow-y-auto rounded-t-2xl">
+        <SheetContent side="bottom" className="h-[85vh] overflow-y-auto rounded-t-lg bg-background">
           <SheetHeader><SheetTitle className="font-display text-lg">Cadastrar Novo Item</SheetTitle></SheetHeader>
           <div className="space-y-3 py-4">
             <div className="space-y-1.5">
@@ -603,7 +603,7 @@ export default function Estoque() {
 
       {/* Sheet: Editar Item */}
       <Sheet open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
-        <SheetContent side="bottom" className="h-[85vh] overflow-y-auto rounded-t-2xl">
+        <SheetContent side="bottom" className="h-[85vh] overflow-y-auto rounded-t-lg bg-background">
           <SheetHeader><SheetTitle className="font-display text-lg">Editar Item</SheetTitle></SheetHeader>
           <div className="space-y-3 py-4">
             <div className="space-y-1.5"><Label className="text-xs">Nome</Label><Input value={editForm.nome} onChange={e => setEditForm(p => ({ ...p, nome: e.target.value }))} /></div>
@@ -650,7 +650,7 @@ export default function Estoque() {
 
       {/* Sheet: Entrada */}
       <Sheet open={showEntrada} onOpenChange={setShowEntrada}>
-        <SheetContent side="bottom" className="rounded-t-2xl">
+        <SheetContent side="bottom" className="rounded-t-lg bg-background">
           <SheetHeader><SheetTitle className="font-display text-lg">Registrar Entrada</SheetTitle></SheetHeader>
           <div className="space-y-4 py-4">
             {itens.length > 1 && (
@@ -682,7 +682,7 @@ export default function Estoque() {
 
       {/* Sheet: Saída */}
       <Sheet open={showSaida} onOpenChange={setShowSaida}>
-        <SheetContent side="bottom" className="rounded-t-2xl">
+        <SheetContent side="bottom" className="rounded-t-lg bg-background">
           <SheetHeader><SheetTitle className="font-display text-lg">Registrar Saída</SheetTitle></SheetHeader>
           <div className="space-y-4 py-4">
             {movItem && (
@@ -705,7 +705,7 @@ export default function Estoque() {
 
       {/* Sheet: Novo Pack */}
       <Sheet open={showNewPack} onOpenChange={setShowNewPack}>
-        <SheetContent side="bottom" className="h-[85vh] overflow-y-auto rounded-t-2xl">
+        <SheetContent side="bottom" className="h-[85vh] overflow-y-auto rounded-t-lg bg-background">
           <SheetHeader><SheetTitle className="font-display text-lg">Criar Novo Pack</SheetTitle></SheetHeader>
           <div className="space-y-3 py-4">
             <div className="space-y-1.5">
@@ -727,7 +727,7 @@ export default function Estoque() {
 
       {/* Sheet: Editar Pack */}
       <Sheet open={!!editingPack} onOpenChange={(open) => !open && setEditingPack(null)}>
-        <SheetContent side="bottom" className="h-[85vh] overflow-y-auto rounded-t-2xl">
+        <SheetContent side="bottom" className="h-[85vh] overflow-y-auto rounded-t-lg bg-background">
           <SheetHeader><SheetTitle className="font-display text-lg">Editar Pack</SheetTitle></SheetHeader>
           <div className="space-y-3 py-4">
             <div className="space-y-1.5"><Label className="text-xs">Nome</Label><Input value={packForm.nome} onChange={e => setPackForm(p => ({ ...p, nome: e.target.value }))} /></div>

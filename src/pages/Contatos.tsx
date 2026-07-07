@@ -105,7 +105,7 @@ export default function Contatos() {
   };
 
   return (
-    <div className="p-4 lg:p-6 space-y-5 animate-fade-in">
+    <div className="page-shell space-y-5 animate-fade-in">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold">Contatos Institucionais</h1>
@@ -118,13 +118,13 @@ export default function Contatos() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
           { label: "Decisores", count: decisores, color: "text-primary bg-primary/8 border-primary/15" },
           { label: "Relevantes", count: relevantes, color: "text-accent-foreground bg-accent/8 border-accent/20" },
           { label: "Com WhatsApp", count: comWpp, color: "text-status-visited bg-status-visited/8 border-status-visited/15" },
         ].map((s) => (
-          <Card key={s.label} className={cn("shadow-sm border", s.color.split(" ").at(-1))}>
+          <Card key={s.label} className={cn("metric-card border", s.color.split(" ").at(-1))}>
             <CardContent className="p-3 text-center">
               <p className={cn("font-display font-bold text-2xl", s.color.split(" ")[0])}>{s.count}</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">{s.label}</p>
@@ -148,7 +148,7 @@ export default function Contatos() {
       ) : (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {filtered.map((c) => (
-            <Card key={c.id} className="shadow-sm border-border/60 hover:shadow-md transition-shadow">
+            <Card key={c.id} className="surface-panel hover:shadow-md transition-shadow">
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">

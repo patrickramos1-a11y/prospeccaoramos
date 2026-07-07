@@ -235,7 +235,7 @@ export default function VisitaFormSheet({ open, onOpenChange, onSaved }: Props) 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-lg overflow-y-auto bg-background">
         <SheetHeader>
           <SheetTitle>Nova visita</SheetTitle>
           <SheetDescription>Cadastre uma visita de campo a um órgão municipal.</SheetDescription>

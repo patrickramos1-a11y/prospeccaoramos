@@ -75,7 +75,7 @@ export default function UsuarioFormSheet({ open, onOpenChange, initial, onSaved 
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+      <SheetContent className="w-full sm:max-w-md overflow-y-auto bg-background">
         <SheetHeader>
           <SheetTitle>{editingId ? "Editar usuário" : "Novo usuário"}</SheetTitle>
           <SheetDescription>

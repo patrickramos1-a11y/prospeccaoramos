@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, MapPin, CalendarCheck, Landmark, Package, Gift,
-  BarChart3, DollarSign, Settings, Leaf, ChevronLeft, ChevronRight, X,
+  BarChart3, DollarSign, Settings, Leaf, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -122,15 +122,15 @@ export default function AppLayout() {
           "relative flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150 group",
           mini ? "justify-center px-2 py-2.5" : "px-3 py-2.5",
           isActive
-            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
-            : "text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-sidebar-accent/70"
+            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md"
+            : "text-sidebar-foreground/72 hover:text-sidebar-foreground hover:bg-sidebar-accent/80"
         )
       }
     >
       {({ isActive }) => (
         <>
           {isActive && !mini && (
-            <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-sidebar-primary-foreground/60" />
+            <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-sidebar-primary-foreground/75" />
           )}
           <item.icon className={cn("w-[18px] h-[18px] flex-shrink-0", isActive ? "opacity-100" : "opacity-80 group-hover:opacity-100")} />
           {!mini && (
@@ -158,21 +158,21 @@ export default function AppLayout() {
   );
 
   return (
-    <div className="flex h-[100dvh] bg-background overflow-hidden">
+    <div className="flex h-[100dvh] app-shell overflow-hidden">
       {/* Sidebar desktop */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col bg-sidebar border-r border-sidebar-border/40",
+          "hidden lg:flex flex-col bg-sidebar border-r border-sidebar-border/50 shadow-lg",
           "transition-[width] duration-300 ease-out flex-shrink-0",
           collapsed ? "w-[68px]" : "w-64"
         )}
       >
         {/* Logo */}
         <div className={cn(
-          "flex items-center gap-3 border-b border-sidebar-border/60",
+          "flex items-center gap-3 border-b border-sidebar-border/60 bg-sidebar-accent/20",
           collapsed ? "justify-center px-2 py-4" : "px-5 py-5"
         )}>
-          <div className="w-9 h-9 rounded-xl bg-sidebar-primary flex items-center justify-center flex-shrink-0 shadow-sm">
+          <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center flex-shrink-0 shadow-md ring-1 ring-sidebar-primary/30">
             <Leaf className="w-5 h-5 text-sidebar-primary-foreground" />
           </div>
           {!collapsed && (
@@ -184,11 +184,11 @@ export default function AppLayout() {
         </div>
 
         {/* Nav agrupada */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 no-scrollbar">
+        <nav className="flex-1 overflow-y-auto py-4 px-2 no-scrollbar">
           {sections.map((section, idx) => (
-            <div key={section.label} className={cn(idx > 0 && "mt-4")}>
+            <div key={section.label} className={cn(idx > 0 && "mt-5")}>
               {!collapsed && (
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-sidebar-foreground/40 px-3 mb-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-sidebar-foreground/42 px-3 mb-2">
                   {section.label}
                 </p>
               )}
@@ -215,8 +215,8 @@ export default function AppLayout() {
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             {!collapsed && <span>Recolher</span>}
           </button>
-          <div className={cn("flex items-center gap-3 px-4 py-3", collapsed && "justify-center px-2")}>
-            <div className="w-8 h-8 rounded-full bg-sidebar-accent flex items-center justify-center flex-shrink-0">
+          <div className={cn("flex items-center gap-3 px-4 py-3 bg-sidebar-accent/18", collapsed && "justify-center px-2")}>
+            <div className="w-8 h-8 rounded-lg bg-sidebar-accent flex items-center justify-center flex-shrink-0 ring-1 ring-sidebar-border/80">
               <span className="text-xs font-bold text-sidebar-accent-foreground">GE</span>
             </div>
             {!collapsed && (
@@ -231,10 +231,10 @@ export default function AppLayout() {
 
       {/* Mobile "Mais" sheet */}
       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <SheetContent side="left" className="w-[280px] p-0 bg-sidebar border-sidebar-border/40">
+        <SheetContent side="left" className="w-[290px] p-0 bg-sidebar border-sidebar-border/40">
           <SheetHeader className="px-5 py-4 border-b border-sidebar-border/60">
             <SheetTitle className="flex items-center gap-3 text-left">
-              <div className="w-9 h-9 rounded-xl bg-sidebar-primary flex items-center justify-center">
+              <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center shadow-md">
                 <Leaf className="w-5 h-5 text-sidebar-primary-foreground" />
               </div>
               <div>
@@ -261,9 +261,9 @@ export default function AppLayout() {
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Topbar */}
-        <header className="sticky top-0 z-30 flex items-center gap-3 px-4 lg:px-6 h-14 border-b border-border/60 glass flex-shrink-0">
+        <header className="sticky top-0 z-30 flex items-center gap-3 px-4 lg:px-6 h-14 border-b border-border/70 glass flex-shrink-0">
           <div className="flex items-center gap-2 text-sm min-w-0">
-            <span className="hidden sm:inline text-muted-foreground">Ramos</span>
+            <span className="hidden sm:inline text-muted-foreground font-medium">Ramos</span>
             <ChevronRight className="hidden sm:block w-3.5 h-3.5 text-muted-foreground/60" />
             <span className="text-foreground font-semibold font-display truncate">{currentTitle}</span>
           </div>

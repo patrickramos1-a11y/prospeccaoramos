@@ -215,10 +215,10 @@ export default function Municipios() {
     <div className="flex h-full animate-fade-in">
       {/* List panel */}
       <div className={cn(
-        "flex flex-col border-r border-border bg-card",
+        "list-panel flex flex-col border-r",
         selected ? "hidden lg:flex lg:w-[420px] flex-shrink-0" : "flex-1"
       )}>
-        <div className="px-4 lg:px-5 py-4 border-b border-border">
+        <div className="px-4 lg:px-5 py-4 border-b border-border/70 bg-card/55">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="font-display text-xl font-bold">Municípios</h1>
@@ -236,7 +236,7 @@ export default function Municipios() {
             </Button>
           </div>
 
-          <div className="space-y-2">
+          <div className="toolbar rounded-lg p-2 space-y-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input
@@ -293,8 +293,8 @@ export default function Municipios() {
                   key={m.id}
                   onClick={() => setSelected(m.id)}
                   className={cn(
-                    "w-full text-left px-4 lg:px-5 py-3.5 border-b border-border/50 hover:bg-muted/40 transition-colors",
-                    selected === m.id && "bg-primary/5 border-l-2 border-l-primary"
+                    "data-row w-full text-left px-4 lg:px-5 py-3.5 border-b transition-colors",
+                    selected === m.id && "bg-primary/7 border-l-2 border-l-primary"
                   )}
                 >
                   <div className="flex items-start gap-3">
@@ -334,8 +334,8 @@ export default function Municipios() {
 
       {/* Detail panel */}
       {selected && selectedM ? (
-        <div className="flex-1 overflow-y-auto bg-background animate-slide-in">
-          <div className="sticky top-0 z-10 bg-card/90 backdrop-blur-sm border-b border-border px-4 lg:px-6 py-3 flex items-center gap-3">
+        <div className="detail-panel flex-1 overflow-y-auto animate-slide-in">
+          <div className="sticky top-0 z-10 bg-card/90 backdrop-blur-sm border-b border-border/70 px-4 lg:px-6 py-3 flex items-center gap-3">
             <button
               onClick={() => setSelected(null)}
               className="lg:hidden text-muted-foreground hover:text-foreground"
@@ -352,7 +352,7 @@ export default function Municipios() {
             </button>
           </div>
 
-          <div className="p-4 lg:p-6 space-y-5">
+          <div className="page-shell space-y-5">
             <div className="flex flex-wrap gap-2">
               <span className={cn("text-xs font-semibold px-3 py-1.5 rounded-full border", getStatusClass(selectedM.status))}>
                 {getStatusLabel(selectedM.status)}
@@ -367,7 +367,7 @@ export default function Municipios() {
               )}
             </div>
 
-            <Card className="shadow-sm border-border/60">
+            <Card className="surface-elevated">
               <CardContent className="p-4">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Score Estratégico</p>
                 <div className="flex items-center gap-4 mb-3">
@@ -389,7 +389,7 @@ export default function Municipios() {
                     { label: "Qualidade Relacionamento", value: selectedM.relacionamento },
                     { label: "Facilidade Processual", value: selectedM.facilidade },
                   ].map((c) => (
-                    <div key={c.label} className="p-2.5 bg-muted/50 rounded-lg">
+                    <div key={c.label} className="p-2.5 bg-secondary/55 rounded-lg border border-border/50">
                       <p className="text-[10px] text-muted-foreground">{c.label}</p>
                       <div className="flex items-center gap-1 mt-1">
                         {[1, 2, 3, 4, 5].map((n) => (
@@ -403,7 +403,7 @@ export default function Municipios() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm border-border/60">
+            <Card className="surface-panel">
               <CardContent className="p-4 space-y-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Localização</p>
                 <div className="space-y-2">
@@ -419,7 +419,7 @@ export default function Municipios() {
               </CardContent>
             </Card>
 
-            <Card className="shadow-sm border-border/60">
+            <Card className="surface-panel">
               <CardContent className="p-4">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Responsável Interno</p>
                 <p className="text-sm font-semibold text-foreground">{selectedM.responsavel ?? "Não atribuído"}</p>
@@ -431,7 +431,7 @@ export default function Municipios() {
           </div>
         </div>
       ) : (
-        <div className="hidden lg:flex flex-1 items-center justify-center text-muted-foreground bg-muted/20">
+        <div className="hidden lg:flex flex-1 items-center justify-center text-muted-foreground detail-panel">
           <div className="text-center">
             <MapPin className="w-12 h-12 mx-auto mb-3 opacity-20" />
             <p className="text-sm font-medium">Selecione um município</p>
@@ -451,7 +451,7 @@ export default function Municipios() {
           }
         }}
       >
-        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto bg-background">
           <SheetHeader>
             <SheetTitle>{editingId ? "Editar Município" : "Cadastrar Município"}</SheetTitle>
             <SheetDescription>

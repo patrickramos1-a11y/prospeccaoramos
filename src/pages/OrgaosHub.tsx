@@ -9,7 +9,7 @@ export default function OrgaosHub() {
   const tab = params.get("tab") === "contatos" ? "contatos" : "orgaos";
 
   return (
-    <div className="p-4 lg:p-6 pb-0 animate-fade-in">
+    <div className="page-shell pb-0 animate-fade-in">
       <Tabs
         value={tab}
         onValueChange={(v) => {
@@ -19,7 +19,7 @@ export default function OrgaosHub() {
           setParams(next, { replace: true });
         }}
       >
-        <TabsList className="grid grid-cols-2 w-full sm:w-auto sm:inline-grid">
+        <TabsList className="toolbar grid grid-cols-2 w-full sm:w-auto sm:inline-grid">
           <TabsTrigger value="orgaos" className="gap-2 text-xs">
             <Landmark className="w-3.5 h-3.5" /> Órgãos
           </TabsTrigger>
