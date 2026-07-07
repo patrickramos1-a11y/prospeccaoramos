@@ -148,7 +148,7 @@ export default function Contatos() {
       ) : (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {filtered.map((c) => (
-            <Card key={c.id} className="surface-panel hover:shadow-md transition-shadow">
+            <Card key={c.id} className="entity-card transition-all">
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">

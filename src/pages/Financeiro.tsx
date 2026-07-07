@@ -349,7 +349,7 @@ export default function Financeiro() {
       )}
 
       {/* Evolução mensal */}
-      <Card className="surface-elevated">
+      <Card className="content-card">
         <CardHeader className="pb-2">
           <CardTitle className="font-display text-base">Evolução do Investimento Mensal</CardTitle>
         </CardHeader>
@@ -381,7 +381,7 @@ export default function Financeiro() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Custo por município */}
-        <Card className="surface-panel">
+        <Card className="content-card">
           <CardHeader className="pb-2">
             <CardTitle className="font-display text-base">Custo por Município (Top 10)</CardTitle>
           </CardHeader>
@@ -406,7 +406,7 @@ export default function Financeiro() {
         </Card>
 
         {/* Custo por tipo */}
-        <Card className="surface-panel">
+        <Card className="content-card">
           <CardHeader className="pb-2">
             <CardTitle className="font-display text-base">Custo por Tipo de Visita</CardTitle>
           </CardHeader>
@@ -440,7 +440,7 @@ export default function Financeiro() {
       </div>
 
       {/* Custo por responsável */}
-      <Card className="surface-panel">
+      <Card className="content-card">
         <CardHeader className="pb-2">
           <CardTitle className="font-display text-base">Custo por Responsável</CardTitle>
         </CardHeader>
@@ -466,7 +466,7 @@ export default function Financeiro() {
       </Card>
 
       {/* Composição */}
-      <Card className="surface-panel">
+      <Card className="content-card">
         <CardHeader className="pb-3">
           <CardTitle className="font-display text-base">Composição dos Custos</CardTitle>
         </CardHeader>
@@ -498,7 +498,7 @@ export default function Financeiro() {
       </Card>
 
       {/* Tabela */}
-      <Card className="surface-panel">
+      <Card className="content-card">
         <CardHeader className="pb-3">
           <CardTitle className="font-display text-base">Custo por Visita</CardTitle>
         </CardHeader>

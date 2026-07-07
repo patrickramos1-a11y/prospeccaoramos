@@ -370,13 +370,13 @@ export default function Estoque() {
 
   return (
     <div className="page-shell space-y-4 animate-fade-in pb-24">
-      <div className="surface-panel rounded-lg p-4 sm:p-5">
+      <div className="page-hero rounded-lg p-4 sm:p-5">
         <h1 className="font-display text-xl font-bold">Estoque de Materiais</h1>
         <p className="text-xs text-muted-foreground mt-0.5">Brindes, papelaria, embalagens e packs</p>
       </div>
 
       {/* Tabs */}
-      <div className="toolbar flex gap-1 p-1 rounded-lg">
+      <div className="filter-bar flex gap-1 p-1 rounded-lg">
         <button className={cn("flex-1 text-xs font-medium py-2 rounded-md transition-colors", activeTab === "itens" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")} onClick={() => setActiveTab("itens")}>
           <Package className="w-3.5 h-3.5 inline mr-1" /> Itens ({itens.length})
         </button>
@@ -386,7 +386,7 @@ export default function Estoque() {
       </div>
 
       {/* Actions */}
-      <div className="toolbar rounded-lg p-2 flex gap-2">
+      <div className="filter-bar rounded-lg p-2 flex gap-2">
         {activeTab === "itens" ? (
           <>
             <Button variant="outline" size="sm" className="flex-1 text-xs" onClick={() => { if (itens[0]) openEntrada(itens[0].id); }}>
@@ -422,7 +422,7 @@ export default function Estoque() {
       )}
 
       {/* Search */}
-      <div className="toolbar rounded-lg p-2 flex flex-col sm:flex-row gap-2">
+      <div className="filter-bar rounded-lg p-2 flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input placeholder={activeTab === "itens" ? "Buscar item..." : "Buscar pack..."} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
@@ -442,7 +442,7 @@ export default function Estoque() {
             const st = getEstoqueStatus(item);
             const pct = item.ideal > 0 ? Math.min((item.saldo_atual / item.ideal) * 100, 100) : 0;
             return (
-              <Card key={item.id} className="surface-panel">
+              <Card key={item.id} className="entity-card">
                 <CardContent className="p-3">
                   <div className="flex items-start gap-3">
                     {item.imagem_url ? (
@@ -511,7 +511,7 @@ export default function Estoque() {
       {activeTab === "packs" && (
         <div className="space-y-2">
           {filteredPacks.map((pack) => (
-            <Card key={pack.id} className="surface-panel">
+            <Card key={pack.id} className="entity-card">
               <CardContent className="p-3">
                 <div className="flex items-start gap-3">
                   <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">

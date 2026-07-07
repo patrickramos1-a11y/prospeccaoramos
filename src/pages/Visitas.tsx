@@ -202,7 +202,7 @@ export default function Visitas() {
               <Plus className="w-3.5 h-3.5" /> Nova Visita
             </button>
           </div>
-          <div className="toolbar rounded-lg p-2 relative">
+          <div className="filter-bar rounded-lg p-2 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
               placeholder="Buscar visita..."
@@ -321,7 +321,7 @@ export default function Visitas() {
             </div>
 
             {selectedV.orgao && (
-              <Card className="surface-panel">
+              <Card className="content-card">
                 <CardContent className="p-4">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Órgão</p>
                   <p className="text-sm">{selectedV.orgao.sigla ? `${selectedV.orgao.sigla} - ` : ""}{selectedV.orgao.nome}</p>
@@ -330,7 +330,7 @@ export default function Visitas() {
             )}
 
             {visitaKits.length > 0 && (
-              <Card className="surface-panel">
+              <Card className="content-card">
                 <CardContent className="p-4">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Materiais e Kits</p>
                   <div className="space-y-1.5">
@@ -350,7 +350,7 @@ export default function Visitas() {
             )}
 
             {selectedV.observacoes && (
-              <Card className="surface-panel">
+              <Card className="content-card">
                 <CardContent className="p-4">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Observações</p>
                   <p className="text-sm whitespace-pre-wrap">{selectedV.observacoes}</p>
@@ -358,7 +358,7 @@ export default function Visitas() {
               </Card>
             )}
 
-            <Card className="surface-elevated">
+            <Card className="content-card">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Roteiro de Campo</p>

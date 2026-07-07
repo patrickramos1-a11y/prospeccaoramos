@@ -293,7 +293,7 @@ export default function Orgaos() {
 
   return (
     <div className="page-shell space-y-5 animate-fade-in">
-      <div className="flex items-center justify-between gap-4">
+      <div className="page-hero rounded-lg p-4 sm:p-5 flex items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold">Órgãos Municipais</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -320,7 +320,7 @@ export default function Orgaos() {
         ))}
       </div>
 
-      <div className="relative">
+      <div className="filter-bar rounded-lg p-2 relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <Input
           placeholder="Buscar por nome, sigla, tipo ou município..."
@@ -340,11 +340,11 @@ export default function Orgaos() {
               <Card
                 key={o.id}
                 onClick={() => setDetailOrgaoId(o.id)}
-                className="surface-panel hover:shadow-md hover:border-primary/40 transition-all cursor-pointer group"
+                className="entity-card transition-all cursor-pointer group"
               >
                 <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/15 transition-colors">
+                  <div className="flex items-start gap-3 pb-3 border-b border-border/55">
+                    <div className="w-11 h-11 rounded-lg bg-primary/12 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/18 transition-colors ring-1 ring-primary/15">
                       <Landmark className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -361,7 +361,7 @@ export default function Orgaos() {
                     </div>
                   </div>
 
-                  <div className="mt-3 pt-3 border-t border-border/40">
+                  <div className="mt-3">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
                         <Users className="w-3 h-3" /> Contatos ({vincs.length})
@@ -424,10 +424,10 @@ export default function Orgaos() {
                       </>
                     )}
                   </div>
-                  <div className="mt-3 pt-3 border-t border-border/40 flex items-center gap-2">
+                  <div className="mt-3 pt-3 border-t border-border/55 flex items-center gap-2">
                     <button
                       onClick={(e) => { e.stopPropagation(); openEdit(o); }}
-                      className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors py-1.5 rounded-md hover:bg-muted/60"
+                      className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-primary transition-colors py-2 rounded-md hover:bg-primary/10"
                     >
                       <Pencil className="w-3.5 h-3.5" /> Editar
                     </button>
@@ -436,7 +436,7 @@ export default function Orgaos() {
                         e.stopPropagation();
                         if (confirm(`Excluir órgão "${o.sigla || o.nome}"?`)) deleteMutation.mutate(o.id);
                       }}
-                      className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium text-destructive/80 hover:text-destructive transition-colors py-1.5 rounded-md hover:bg-destructive/10"
+                      className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-destructive transition-colors py-2 rounded-md hover:bg-destructive/10"
                     >
                       <Trash2 className="w-3.5 h-3.5" /> Excluir
                     </button>

@@ -17,7 +17,7 @@ interface PageHeaderProps {
  */
 export function PageHeader({ title, subtitle, icon: Icon, actions, className, children }: PageHeaderProps) {
   return (
-    <header className={cn("surface-panel rounded-lg p-4 sm:p-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between", className)}>
+    <header className={cn("page-hero rounded-lg p-4 sm:p-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between", className)}>
       <div className="flex items-start gap-3 min-w-0">
         {Icon && (
           <div className="hidden sm:flex w-11 h-11 rounded-lg bg-primary/10 text-primary items-center justify-center flex-shrink-0 kpi-icon">

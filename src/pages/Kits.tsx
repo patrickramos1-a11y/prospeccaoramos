@@ -296,12 +296,12 @@ export default function Kits() {
 
   return (
     <div className="page-shell space-y-4 animate-fade-in pb-24">
-      <div className="surface-panel rounded-lg p-4 sm:p-5">
+      <div className="page-hero rounded-lg p-4 sm:p-5">
         <h1 className="font-display text-xl font-bold">Kits e Montagem</h1>
         <p className="text-xs text-muted-foreground mt-0.5">Modelos de kits — monte independente do estoque</p>
       </div>
 
-      <div className="toolbar rounded-lg p-2 flex gap-2">
+      <div className="filter-bar rounded-lg p-2 flex gap-2">
         <Button variant="outline" size="sm" className="flex-1 text-xs"
           onClick={() => { setSelectedKitId(kits[0]?.id ?? null); setShowMontarLote(true); }}
           disabled={kits.length === 0}>
@@ -341,7 +341,7 @@ export default function Kits() {
           const isExpanded = expandedKitId === kit.id;
 
           return (
-            <Card key={kit.id} className={cn("surface-panel overflow-hidden", availability.canBuild ? "border-status-visited/30" : "border-border/60")}>
+            <Card key={kit.id} className={cn("entity-card overflow-hidden", availability.canBuild ? "border-status-visited/40" : "border-border")}>
               <button
                 className="w-full p-4 flex items-center gap-3 text-left"
                 onClick={() => setExpandedKitId(isExpanded ? null : kit.id)}

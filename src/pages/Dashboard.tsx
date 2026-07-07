@@ -233,7 +233,7 @@ export default function Dashboard() {
   return (
     <div className="page-shell space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="surface-panel rounded-lg p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="page-hero rounded-lg p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-2xl font-bold text-foreground">Visão Geral</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
@@ -286,7 +286,7 @@ export default function Dashboard() {
 
       <div className="grid lg:grid-cols-3 gap-4 lg:gap-6">
         {/* Municípios - status breakdown */}
-        <Card className="surface-elevated lg:col-span-2">
+        <Card className="content-card lg:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="font-display text-base flex items-center justify-between">
               <span>Municípios por Status</span>
@@ -357,7 +357,7 @@ export default function Dashboard() {
         {/* Right column */}
         <div className="space-y-4">
           {/* Próximas visitas */}
-          <Card className="surface-panel">
+          <Card className="content-card">
             <CardHeader className="pb-2">
               <CardTitle className="font-display text-base flex items-center justify-between">
                 <span>Próximas Visitas</span>
@@ -400,7 +400,7 @@ export default function Dashboard() {
           </Card>
 
           {/* Estoque em alerta */}
-          <Card className="surface-panel">
+          <Card className="content-card">
             <CardHeader className="pb-2">
               <CardTitle className="font-display text-base flex items-center justify-between">
                 <span className="flex items-center gap-2">
@@ -459,7 +459,7 @@ export default function Dashboard() {
       </div>
 
       {/* Todos os alertas */}
-      <Card className="surface-panel">
+      <Card className="content-card">
         <CardHeader className="pb-3">
           <CardTitle className="font-display text-base flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-accent-foreground" />

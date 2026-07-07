@@ -289,7 +289,7 @@ export default function Inteligencia() {
 
       <div className="grid lg:grid-cols-2 gap-5">
         {/* Score Top */}
-        <Card className="surface-elevated">
+        <Card className="content-card">
           <CardHeader className="pb-2"><CardTitle className="font-display text-base">Top 10 — Score Estratégico</CardTitle></CardHeader>
           <CardContent>
             {scoreData.length ? (
@@ -307,7 +307,7 @@ export default function Inteligencia() {
         </Card>
 
         {/* Status */}
-        <Card className="surface-panel">
+        <Card className="content-card">
           <CardHeader className="pb-2"><CardTitle className="font-display text-base">Distribuição de Visitas</CardTitle></CardHeader>
           <CardContent>
             {statusData.length ? (
@@ -335,7 +335,7 @@ export default function Inteligencia() {
         </Card>
 
         {/* Radar */}
-        <Card className="surface-panel">
+        <Card className="content-card">
           <CardHeader className="pb-2"><CardTitle className="font-display text-base">Perfil Médio Territorial</CardTitle></CardHeader>
           <CardContent className="flex items-center justify-center">
             {radarData.length ? (
@@ -352,7 +352,7 @@ export default function Inteligencia() {
         </Card>
 
         {/* Custo por tipo */}
-        <Card className="surface-panel">
+        <Card className="content-card">
           <CardHeader className="pb-2"><CardTitle className="font-display text-base">Custo por Tipo de Visita</CardTitle></CardHeader>
           <CardContent>
             {custoPorTipo.length ? (
@@ -371,7 +371,7 @@ export default function Inteligencia() {
       </div>
 
       {/* Heatmap por UF */}
-      <Card className="surface-panel">
+      <Card className="content-card">
         <CardHeader className="pb-3">
           <CardTitle className="font-display text-base flex items-center gap-2">
             <MapIcon className="w-4 h-4 text-primary" />
@@ -409,7 +409,7 @@ export default function Inteligencia() {
 
       <div className="grid lg:grid-cols-2 gap-5">
         {/* Custo por município */}
-        <Card className="surface-panel">
+        <Card className="content-card">
           <CardHeader className="pb-2"><CardTitle className="font-display text-base">Custo por Município (Top 8)</CardTitle></CardHeader>
           <CardContent>
             {custoPorMun.length ? (
@@ -427,7 +427,7 @@ export default function Inteligencia() {
         </Card>
 
         {/* Eficiência scatter */}
-        <Card className="surface-panel">
+        <Card className="content-card">
           <CardHeader className="pb-2">
             <CardTitle className="font-display text-base">Eficiência: Custo × Score</CardTitle>
             <p className="text-[10px] text-muted-foreground">Quadrante superior esquerdo = melhor ROI</p>
@@ -464,7 +464,7 @@ export default function Inteligencia() {
       </div>
 
       {/* Ranking */}
-      <Card className="surface-panel">
+      <Card className="content-card">
         <CardHeader className="pb-3">
           <CardTitle className="font-display text-base flex items-center gap-2">
             <Award className="w-4 h-4 text-accent-foreground" />

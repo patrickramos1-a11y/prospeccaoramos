@@ -97,7 +97,7 @@ export default function Configuracoes() {
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {filtered.map((u) => (
-                  <Card key={u.id} className={cn("surface-panel transition-opacity", !u.ativo && "opacity-60")}>
+                  <Card key={u.id} className={cn("entity-card transition-opacity", !u.ativo && "opacity-60")}>
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         <div

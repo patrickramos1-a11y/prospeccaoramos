@@ -19,7 +19,7 @@ export default function OrgaosHub() {
           setParams(next, { replace: true });
         }}
       >
-        <TabsList className="toolbar grid grid-cols-2 w-full sm:w-auto sm:inline-grid">
+        <TabsList className="filter-bar grid grid-cols-2 w-full sm:w-auto sm:inline-grid">
           <TabsTrigger value="orgaos" className="gap-2 text-xs">
             <Landmark className="w-3.5 h-3.5" /> Órgãos
           </TabsTrigger>

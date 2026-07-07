@@ -236,7 +236,7 @@ export default function Municipios() {
             </Button>
           </div>
 
-          <div className="toolbar rounded-lg p-2 space-y-2">
+          <div className="filter-bar rounded-lg p-2 space-y-2">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input
@@ -367,7 +367,7 @@ export default function Municipios() {
               )}
             </div>
 
-            <Card className="surface-elevated">
+            <Card className="content-card">
               <CardContent className="p-4">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Score Estratégico</p>
                 <div className="flex items-center gap-4 mb-3">
@@ -403,7 +403,7 @@ export default function Municipios() {
               </CardContent>
             </Card>
 
-            <Card className="surface-panel">
+            <Card className="content-card">
               <CardContent className="p-4 space-y-3">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Localização</p>
                 <div className="space-y-2">
@@ -419,7 +419,7 @@ export default function Municipios() {
               </CardContent>
             </Card>
 
-            <Card className="surface-panel">
+            <Card className="content-card">
               <CardContent className="p-4">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Responsável Interno</p>
                 <p className="text-sm font-semibold text-foreground">{selectedM.responsavel ?? "Não atribuído"}</p>
