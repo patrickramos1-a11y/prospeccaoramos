@@ -1,30 +1,39 @@
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Landmark, Users } from "lucide-react";
+import { BriefcaseBusiness, Landmark, Users } from "lucide-react";
 import Orgaos from "./Orgaos";
 import Contatos from "./Contatos";
+import Prestadores from "./Prestadores";
+
+const validTabs = ["orgaos", "contatos", "prestadores"] as const;
 
 export default function OrgaosHub() {
   const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") === "contatos" ? "contatos" : "orgaos";
+  const requestedTab = params.get("tab");
+  const tab = validTabs.includes(requestedTab as (typeof validTabs)[number])
+    ? requestedTab
+    : "orgaos";
 
   return (
     <div className="page-shell pb-0 animate-fade-in">
       <Tabs
         value={tab}
-        onValueChange={(v) => {
+        onValueChange={(value) => {
           const next = new URLSearchParams(params);
-          if (v === "contatos") next.set("tab", "contatos");
-          else next.delete("tab");
+          if (value === "orgaos") next.delete("tab");
+          else next.set("tab", value);
           setParams(next, { replace: true });
         }}
       >
-        <TabsList className="filter-bar grid grid-cols-2 w-full sm:w-auto sm:inline-grid">
+        <TabsList className="filter-bar grid grid-cols-3 w-full sm:w-auto sm:inline-grid">
           <TabsTrigger value="orgaos" className="gap-2 text-xs">
             <Landmark className="w-3.5 h-3.5" /> Órgãos
           </TabsTrigger>
           <TabsTrigger value="contatos" className="gap-2 text-xs">
             <Users className="w-3.5 h-3.5" /> Contatos
+          </TabsTrigger>
+          <TabsTrigger value="prestadores" className="gap-2 text-xs">
+            <BriefcaseBusiness className="w-3.5 h-3.5" /> Prestadores
           </TabsTrigger>
         </TabsList>
         <TabsContent value="orgaos" className="mt-0 -mx-4 lg:-mx-6">
@@ -32,6 +41,9 @@ export default function OrgaosHub() {
         </TabsContent>
         <TabsContent value="contatos" className="mt-0 -mx-4 lg:-mx-6">
           <Contatos />
+        </TabsContent>
+        <TabsContent value="prestadores" className="mt-0 -mx-4 lg:-mx-6">
+          <Prestadores />
         </TabsContent>
       </Tabs>
     </div>

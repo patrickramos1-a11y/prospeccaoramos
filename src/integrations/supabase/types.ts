@@ -379,6 +379,125 @@ export type Database = {
           },
         ]
       }
+      prestador_contatos: {
+        Row: {
+          cargo: string
+          created_at: string
+          email: string
+          id: string
+          nome: string
+          observacoes: string
+          prestador_id: string
+          telefone: string
+          whatsapp: boolean
+        }
+        Insert: {
+          cargo?: string
+          created_at?: string
+          email?: string
+          id?: string
+          nome: string
+          observacoes?: string
+          prestador_id: string
+          telefone?: string
+          whatsapp?: boolean
+        }
+        Update: {
+          cargo?: string
+          created_at?: string
+          email?: string
+          id?: string
+          nome?: string
+          observacoes?: string
+          prestador_id?: string
+          telefone?: string
+          whatsapp?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "prestador_contatos_prestador_id_fkey"
+            columns: ["prestador_id"]
+            isOneToOne: false
+            referencedRelation: "prestadores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      prestadores: {
+        Row: {
+          avaliacao: number
+          categoria: string
+          cidade: string
+          cnpj: string
+          confianca: string
+          created_at: string
+          email: string
+          endereco: string
+          estado: string
+          forma_pagamento: string
+          id: string
+          instagram: string
+          nome: string
+          observacoes: string
+          prazo_medio: string
+          servicos: string
+          site: string
+          status: string
+          telefone: string
+          tipo: string
+          updated_at: string
+          whatsapp: string
+        }
+        Insert: {
+          avaliacao?: number
+          categoria?: string
+          cidade?: string
+          cnpj?: string
+          confianca?: string
+          created_at?: string
+          email?: string
+          endereco?: string
+          estado?: string
+          forma_pagamento?: string
+          id?: string
+          instagram?: string
+          nome: string
+          observacoes?: string
+          prazo_medio?: string
+          servicos?: string
+          site?: string
+          status?: string
+          telefone?: string
+          tipo?: string
+          updated_at?: string
+          whatsapp?: string
+        }
+        Update: {
+          avaliacao?: number
+          categoria?: string
+          cidade?: string
+          cnpj?: string
+          confianca?: string
+          created_at?: string
+          email?: string
+          endereco?: string
+          estado?: string
+          forma_pagamento?: string
+          id?: string
+          instagram?: string
+          nome?: string
+          observacoes?: string
+          prazo_medio?: string
+          servicos?: string
+          site?: string
+          status?: string
+          telefone?: string
+          tipo?: string
+          updated_at?: string
+          whatsapp?: string
+        }
+        Relationships: []
+      }
       pack_itens: {
         Row: {
           created_at: string
