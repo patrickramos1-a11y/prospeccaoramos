@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { getGmailComposeUrl, getWhatsAppUrl, isUsefulContactValue } from "@/lib/contact-links";
 import {
   BriefcaseBusiness,
   Building2,
@@ -160,8 +161,6 @@ const novoContato = (): PrestadorContatoForm => ({
   email: "",
   observacoes: "",
 });
-
-const onlyDigits = (value: string) => value.replace(/\D/g, "");
 
 const normalize = (value: string) =>
   value
@@ -487,7 +486,9 @@ export default function Prestadores() {
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {filtered.map((prestador) => {
             const linkedContacts = contatosByPrestador.get(prestador.id) ?? [];
-            const whatsappDigits = onlyDigits(prestador.whatsapp || prestador.telefone);
+            const whatsappUrl = getWhatsAppUrl(prestador.whatsapp || prestador.telefone);
+            const gmailUrl = getGmailComposeUrl(prestador.email);
+            const hasPhone = isUsefulContactValue(prestador.telefone || prestador.whatsapp);
             return (
               <Card key={prestador.id} className="entity-card group">
                 <CardContent className="p-4">
@@ -548,13 +549,13 @@ export default function Prestadores() {
                   )}
 
                   <div className="grid grid-cols-1 gap-1.5 mt-3 text-[11px]">
-                    {(prestador.telefone || prestador.whatsapp) && (
+                    {hasPhone && (
                       <div className="flex items-center gap-2 text-muted-foreground min-w-0">
                         <Phone className="w-3.5 h-3.5 flex-shrink-0" />
                         <span className="truncate">{prestador.whatsapp || prestador.telefone}</span>
                       </div>
                     )}
-                    {prestador.email && (
+                    {gmailUrl && (
                       <div className="flex items-center gap-2 text-muted-foreground min-w-0">
                         <Mail className="w-3.5 h-3.5 flex-shrink-0" />
                         <span className="truncate">{prestador.email}</span>
@@ -598,9 +599,9 @@ export default function Prestadores() {
                   </div>
 
                   <div className="mt-3 pt-3 border-t border-border/55 grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                    {whatsappDigits && (
+                    {whatsappUrl && (
                       <a
-                        href={`https://wa.me/55${whatsappDigits}`}
+                        href={whatsappUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="flex items-center justify-center gap-1.5 text-xs font-semibold text-status-visited transition-colors py-2 rounded-md hover:bg-status-visited/10"
@@ -608,9 +609,11 @@ export default function Prestadores() {
                         <MessageCircle className="w-3.5 h-3.5" /> WhatsApp
                       </a>
                     )}
-                    {prestador.email && (
+                    {gmailUrl && (
                       <a
-                        href={`mailto:${prestador.email}`}
+                        href={gmailUrl}
+                        target="_blank"
+                        rel="noreferrer"
                         className="flex items-center justify-center gap-1.5 text-xs font-semibold text-primary transition-colors py-2 rounded-md hover:bg-primary/10"
                       >
                         <Mail className="w-3.5 h-3.5" /> Email

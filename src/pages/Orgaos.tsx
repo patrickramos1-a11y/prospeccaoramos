@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { getGmailComposeUrl, getWhatsAppUrl, isUsefulContactValue } from "@/lib/contact-links";
 import {
   Landmark, Plus, Search, MapPin, Users, Phone, Mail,
   Pencil, Trash2, Loader2, Check, MessageCircle, UserPlus, Building2, FileText,
@@ -685,6 +686,8 @@ export default function Orgaos() {
             const o = orgaos.find((x) => x.id === detailOrgaoId);
             if (!o) return null;
             const vincs = vinculosByOrgao.get(o.id) ?? [];
+            const orgEmailUrl = getGmailComposeUrl(o.email);
+            const hasOrgPhone = isUsefulContactValue(o.telefone);
             return (
               <>
                 <DialogHeader>
@@ -722,7 +725,7 @@ export default function Orgaos() {
                         </div>
                       </div>
                     )}
-                    {o.telefone && (
+                    {hasOrgPhone && (
                       <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/40">
                         <Phone className="w-3.5 h-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
                         <div>
@@ -731,12 +734,12 @@ export default function Orgaos() {
                         </div>
                       </div>
                     )}
-                    {o.email && (
+                    {orgEmailUrl && (
                       <div className="flex items-start gap-2 p-2.5 rounded-lg bg-muted/40 min-w-0">
                         <Mail className="w-3.5 h-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
                         <div className="min-w-0">
                           <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Email</p>
-                          <a href={`mailto:${o.email}`} className="font-medium hover:text-primary truncate block">{o.email}</a>
+                          <a href={orgEmailUrl} target="_blank" rel="noreferrer" className="font-medium hover:text-primary truncate block">{o.email}</a>
                         </div>
                       </div>
                     )}
@@ -770,6 +773,9 @@ export default function Orgaos() {
                           const c = contatoById.get(v.contato_id);
                           if (!c) return null;
                           const initials = c.nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
+                          const contatoEmailUrl = getGmailComposeUrl(c.email);
+                          const contatoWhatsappUrl = c.whatsapp ? getWhatsAppUrl(c.telefone) : null;
+                          const hasContatoPhone = isUsefulContactValue(c.telefone);
                           return (
                             <li key={v.contato_id} className="flex items-start gap-3 p-3 rounded-lg border border-border/60 hover:border-primary/40 transition-colors">
                               <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-xs font-bold text-primary">
@@ -792,19 +798,24 @@ export default function Orgaos() {
                                   </p>
                                 )}
                                 <div className="flex flex-col gap-0.5 pt-1">
-                                  {c.telefone && (
-                                    <a href={`tel:${c.telefone}`} className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1.5">
+                                  {hasContatoPhone && (
+                                    <div className="text-[11px] text-muted-foreground flex flex-wrap items-center gap-1.5">
                                       <Phone className="w-3 h-3" />
-                                      {c.telefone}
-                                      {c.whatsapp && (
-                                        <span className="inline-flex items-center gap-0.5 text-[9px] text-status-visited bg-status-visited/10 px-1 rounded">
+                                      <a href={`tel:${c.telefone}`} className="hover:text-primary">{c.telefone}</a>
+                                      {contatoWhatsappUrl && (
+                                        <a
+                                          href={contatoWhatsappUrl}
+                                          target="_blank"
+                                          rel="noreferrer"
+                                          className="inline-flex items-center gap-0.5 text-[9px] text-status-visited bg-status-visited/10 px-1 rounded hover:bg-status-visited/20 transition-colors"
+                                        >
                                           <MessageCircle className="w-2.5 h-2.5" /> WhatsApp
-                                        </span>
+                                        </a>
                                       )}
-                                    </a>
+                                    </div>
                                   )}
-                                  {c.email && (
-                                    <a href={`mailto:${c.email}`} className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1.5 truncate">
+                                  {contatoEmailUrl && (
+                                    <a href={contatoEmailUrl} target="_blank" rel="noreferrer" className="text-[11px] text-muted-foreground hover:text-primary flex items-center gap-1.5 truncate">
                                       <Mail className="w-3 h-3 flex-shrink-0" />
                                       <span className="truncate">{c.email}</span>
                                     </a>

@@ -2,8 +2,9 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
+import { getGmailComposeUrl, getWhatsAppUrl, isUsefulContactValue } from "@/lib/contact-links";
 import {
-  Users, Search, Phone, Mail, Building2, Plus, Pencil, Trash2, Loader2,
+  Users, Search, Phone, Mail, Building2, Plus, Pencil, Trash2, Loader2, MessageCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -147,7 +148,12 @@ export default function Contatos() {
         <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
       ) : (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {filtered.map((c) => (
+          {filtered.map((c) => {
+            const whatsappUrl = c.whatsapp ? getWhatsAppUrl(c.telefone) : null;
+            const gmailUrl = getGmailComposeUrl(c.email);
+            const hasPhone = isUsefulContactValue(c.telefone);
+
+            return (
             <Card key={c.id} className="entity-card transition-all">
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
@@ -171,19 +177,26 @@ export default function Contatos() {
                   </div>
                 </div>
                 <div className="mt-3 space-y-1.5">
-                  {c.telefone && (
+                  {hasPhone && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Phone className="w-3.5 h-3.5 flex-shrink-0" />
                       <a href={`tel:${c.telefone}`} className="hover:text-primary transition-colors truncate">{c.telefone}</a>
-                      {c.whatsapp && (
-                        <span className="ml-auto bg-status-visited/12 text-status-visited text-[10px] px-1.5 rounded">WhatsApp</span>
+                      {whatsappUrl && (
+                        <a
+                          href={whatsappUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="ml-auto inline-flex items-center gap-1 bg-status-visited/12 text-status-visited text-[10px] px-1.5 py-0.5 rounded hover:bg-status-visited/20 transition-colors"
+                        >
+                          <MessageCircle className="w-2.5 h-2.5" /> WhatsApp
+                        </a>
                       )}
                     </div>
                   )}
-                  {c.email && (
+                  {gmailUrl && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Mail className="w-3.5 h-3.5 flex-shrink-0" />
-                      <a href={`mailto:${c.email}`} className="hover:text-primary transition-colors truncate">{c.email}</a>
+                      <a href={gmailUrl} target="_blank" rel="noreferrer" className="hover:text-primary transition-colors truncate">{c.email}</a>
                     </div>
                   )}
                 </div>
@@ -205,7 +218,8 @@ export default function Contatos() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
