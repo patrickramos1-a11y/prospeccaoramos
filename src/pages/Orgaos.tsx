@@ -64,9 +64,15 @@ const emptyForm: FormState = {
   endereco: "", telefone: "", email: "", observacoes: "", vinculos: [],
 };
 
+const ALL_VALUE = "__all__";
+
 export default function Orgaos() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [municipioFilter, setMunicipioFilter] = useState(ALL_VALUE);
+  const [estadoFilter, setEstadoFilter] = useState(ALL_VALUE);
+  const [tipoFilter, setTipoFilter] = useState(ALL_VALUE);
+  const [vinculoFilter, setVinculoFilter] = useState(ALL_VALUE);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -149,15 +155,39 @@ export default function Orgaos() {
     return m ? `${m.nome}/${m.estado}` : "—";
   };
 
+  const tipoOptions = useMemo(() => {
+    return Array.from(new Set(orgaos.map((o) => o.tipo.trim()).filter(isUsefulContactValue))).sort((a, b) =>
+      a.localeCompare(b),
+    );
+  }, [orgaos]);
+
+  const hasActiveFilters =
+    municipioFilter !== ALL_VALUE ||
+    estadoFilter !== ALL_VALUE ||
+    tipoFilter !== ALL_VALUE ||
+    vinculoFilter !== ALL_VALUE;
+
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
-    return orgaos.filter((o) =>
-      o.nome.toLowerCase().includes(s) ||
-      o.sigla.toLowerCase().includes(s) ||
-      o.tipo.toLowerCase().includes(s) ||
-      munLabel(o.municipio_id).toLowerCase().includes(s)
-    );
-  }, [orgaos, search, munById]);
+    return orgaos.filter((o) => {
+      const vinculosCount = vinculosByOrgao.get(o.id)?.length ?? 0;
+      const matchesSearch =
+        o.nome.toLowerCase().includes(s) ||
+        o.sigla.toLowerCase().includes(s) ||
+        o.tipo.toLowerCase().includes(s) ||
+        munLabel(o.municipio_id).toLowerCase().includes(s);
+
+      return (
+        matchesSearch &&
+        (municipioFilter === ALL_VALUE || o.municipio_id === municipioFilter) &&
+        (estadoFilter === ALL_VALUE || o.estado === estadoFilter) &&
+        (tipoFilter === ALL_VALUE || o.tipo === tipoFilter) &&
+        (vinculoFilter === ALL_VALUE ||
+          (vinculoFilter === "com" && vinculosCount > 0) ||
+          (vinculoFilter === "sem" && vinculosCount === 0))
+      );
+    });
+  }, [orgaos, search, munById, municipioFilter, estadoFilter, tipoFilter, vinculoFilter, vinculosByOrgao]);
 
   const municipiosDoEstado = useMemo(
     () => municipios.filter((m) => !form.estado || m.estado === form.estado),
@@ -321,14 +351,60 @@ export default function Orgaos() {
         ))}
       </div>
 
-      <div className="filter-bar rounded-lg p-2 relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome, sigla, tipo ou município..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 h-9 text-sm"
-        />
+      <div className="filter-bar rounded-lg p-2 grid grid-cols-1 lg:grid-cols-[minmax(240px,1fr)_180px_110px_160px_150px_auto] gap-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, sigla, tipo ou município..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-9 text-sm"
+          />
+        </div>
+        <Select value={municipioFilter} onValueChange={setMunicipioFilter}>
+          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Município" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>Todos municípios</SelectItem>
+            {municipios.map((m) => <SelectItem key={m.id} value={m.id}>{m.nome}/{m.estado}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={estadoFilter} onValueChange={setEstadoFilter}>
+          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="UF" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>Todas UFs</SelectItem>
+            {ESTADOS_BR.map((uf) => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={tipoFilter} onValueChange={setTipoFilter}>
+          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Tipo" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>Todos tipos</SelectItem>
+            {tipoOptions.map((tipo) => <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={vinculoFilter} onValueChange={setVinculoFilter}>
+          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Contatos" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>Todos contatos</SelectItem>
+            <SelectItem value="com">Com contatos</SelectItem>
+            <SelectItem value="sem">Sem contatos</SelectItem>
+          </SelectContent>
+        </Select>
+        {hasActiveFilters && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 text-xs"
+            onClick={() => {
+              setMunicipioFilter(ALL_VALUE);
+              setEstadoFilter(ALL_VALUE);
+              setTipoFilter(ALL_VALUE);
+              setVinculoFilter(ALL_VALUE);
+            }}
+          >
+            Limpar filtros
+          </Button>
+        )}
       </div>
 
       {isLoading ? (

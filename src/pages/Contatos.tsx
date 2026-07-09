@@ -9,6 +9,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import ContatoFormSheet, { ContatoFormData } from "@/components/ContatoFormSheet";
 
@@ -32,9 +35,15 @@ type ContatoRow = {
 
 type MunicipioOpt = { id: string; nome: string; estado: string };
 
+const ALL_VALUE = "__all__";
+
 export default function Contatos() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [municipioFilter, setMunicipioFilter] = useState(ALL_VALUE);
+  const [nivelFilter, setNivelFilter] = useState(ALL_VALUE);
+  const [whatsappFilter, setWhatsappFilter] = useState(ALL_VALUE);
+  const [emailFilter, setEmailFilter] = useState(ALL_VALUE);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editing, setEditing] = useState<ContatoFormData | null>(null);
 
@@ -70,13 +79,32 @@ export default function Contatos() {
     return m ? `${m.nome}/${m.estado}` : "—";
   };
 
+  const hasActiveFilters =
+    municipioFilter !== ALL_VALUE ||
+    nivelFilter !== ALL_VALUE ||
+    whatsappFilter !== ALL_VALUE ||
+    emailFilter !== ALL_VALUE;
+
   const filtered = useMemo(() => {
     const s = search.toLowerCase();
     return contatos.filter((c) => {
       const munTxt = munLabel(c.municipio_id).toLowerCase();
-      return c.nome.toLowerCase().includes(s) || c.cargo.toLowerCase().includes(s) || munTxt.includes(s);
+      const hasEmail = !!getGmailComposeUrl(c.email);
+      const matchesSearch = c.nome.toLowerCase().includes(s) || c.cargo.toLowerCase().includes(s) || munTxt.includes(s);
+
+      return (
+        matchesSearch &&
+        (municipioFilter === ALL_VALUE || c.municipio_id === municipioFilter) &&
+        (nivelFilter === ALL_VALUE || c.nivel === nivelFilter) &&
+        (whatsappFilter === ALL_VALUE ||
+          (whatsappFilter === "com" && c.whatsapp) ||
+          (whatsappFilter === "sem" && !c.whatsapp)) &&
+        (emailFilter === ALL_VALUE ||
+          (emailFilter === "com" && hasEmail) ||
+          (emailFilter === "sem" && !hasEmail))
+      );
     });
-  }, [contatos, search, munById]);
+  }, [contatos, search, munById, municipioFilter, nivelFilter, whatsappFilter, emailFilter]);
 
   const decisores = filtered.filter((c) => c.nivel === "Decisor").length;
   const relevantes = filtered.filter((c) => c.nivel === "Relevante").length;
@@ -134,14 +162,63 @@ export default function Contatos() {
         ))}
       </div>
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-        <Input
-          placeholder="Buscar por nome, cargo ou município..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 h-9 text-sm"
-        />
+      <div className="filter-bar rounded-lg p-2 grid grid-cols-1 lg:grid-cols-[minmax(240px,1fr)_180px_150px_160px_140px_auto] gap-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, cargo ou município..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-9 text-sm"
+          />
+        </div>
+        <Select value={municipioFilter} onValueChange={setMunicipioFilter}>
+          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Município" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>Todos municípios</SelectItem>
+            {municipios.map((m) => <SelectItem key={m.id} value={m.id}>{m.nome}/{m.estado}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={nivelFilter} onValueChange={setNivelFilter}>
+          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Nível" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>Todos níveis</SelectItem>
+            <SelectItem value="Decisor">Decisor</SelectItem>
+            <SelectItem value="Relevante">Relevante</SelectItem>
+            <SelectItem value="Básico">Básico</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={whatsappFilter} onValueChange={setWhatsappFilter}>
+          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="WhatsApp" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>Todos WhatsApp</SelectItem>
+            <SelectItem value="com">Com WhatsApp</SelectItem>
+            <SelectItem value="sem">Sem WhatsApp</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={emailFilter} onValueChange={setEmailFilter}>
+          <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="E-mail" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>Todos e-mails</SelectItem>
+            <SelectItem value="com">Com e-mail</SelectItem>
+            <SelectItem value="sem">Sem e-mail</SelectItem>
+          </SelectContent>
+        </Select>
+        {hasActiveFilters && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 text-xs"
+            onClick={() => {
+              setMunicipioFilter(ALL_VALUE);
+              setNivelFilter(ALL_VALUE);
+              setWhatsappFilter(ALL_VALUE);
+              setEmailFilter(ALL_VALUE);
+            }}
+          >
+            Limpar filtros
+          </Button>
+        )}
       </div>
 
       {isLoading ? (

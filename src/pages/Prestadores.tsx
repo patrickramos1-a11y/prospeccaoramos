@@ -186,6 +186,10 @@ export default function Prestadores() {
   const [categoriaFilter, setCategoriaFilter] = useState(ALL_VALUE);
   const [statusFilter, setStatusFilter] = useState(ALL_VALUE);
   const [confiancaFilter, setConfiancaFilter] = useState(ALL_VALUE);
+  const [cidadeFilter, setCidadeFilter] = useState(ALL_VALUE);
+  const [whatsappFilter, setWhatsappFilter] = useState(ALL_VALUE);
+  const [emailFilter, setEmailFilter] = useState(ALL_VALUE);
+  const [avaliacaoFilter, setAvaliacaoFilter] = useState(ALL_VALUE);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -226,10 +230,33 @@ export default function Prestadores() {
     return map;
   }, [contatos]);
 
+  const cidadeOptions = useMemo(() => {
+    return Array.from(
+      new Set(
+        prestadores
+          .map((prestador) => [prestador.cidade.trim(), prestador.estado.trim()].filter(isUsefulContactValue).join("/"))
+          .filter(isUsefulContactValue),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+  }, [prestadores]);
+
+  const hasActiveFilters =
+    categoriaFilter !== ALL_VALUE ||
+    statusFilter !== ALL_VALUE ||
+    confiancaFilter !== ALL_VALUE ||
+    cidadeFilter !== ALL_VALUE ||
+    whatsappFilter !== ALL_VALUE ||
+    emailFilter !== ALL_VALUE ||
+    avaliacaoFilter !== ALL_VALUE;
+
   const filtered = useMemo(() => {
     const s = normalize(search.trim());
     return prestadores.filter((prestador) => {
       const linkedContacts = contatosByPrestador.get(prestador.id) ?? [];
+      const cidadeLabel = [prestador.cidade.trim(), prestador.estado.trim()].filter(isUsefulContactValue).join("/");
+      const hasWhatsapp = !!getWhatsAppUrl(prestador.whatsapp || prestador.telefone);
+      const hasEmail = !!getGmailComposeUrl(prestador.email);
+      const minAvaliacao = avaliacaoFilter === ALL_VALUE ? 0 : Number(avaliacaoFilter);
       const haystack = normalize([
         prestador.nome,
         prestador.tipo,
@@ -249,10 +276,29 @@ export default function Prestadores() {
         (!s || haystack.includes(s)) &&
         (categoriaFilter === ALL_VALUE || prestador.categoria === categoriaFilter) &&
         (statusFilter === ALL_VALUE || prestador.status === statusFilter) &&
-        (confiancaFilter === ALL_VALUE || prestador.confianca === confiancaFilter)
+        (confiancaFilter === ALL_VALUE || prestador.confianca === confiancaFilter) &&
+        (cidadeFilter === ALL_VALUE || cidadeLabel === cidadeFilter) &&
+        (whatsappFilter === ALL_VALUE ||
+          (whatsappFilter === "com" && hasWhatsapp) ||
+          (whatsappFilter === "sem" && !hasWhatsapp)) &&
+        (emailFilter === ALL_VALUE ||
+          (emailFilter === "com" && hasEmail) ||
+          (emailFilter === "sem" && !hasEmail)) &&
+        (avaliacaoFilter === ALL_VALUE || prestador.avaliacao >= minAvaliacao)
       );
     });
-  }, [prestadores, contatosByPrestador, search, categoriaFilter, statusFilter, confiancaFilter]);
+  }, [
+    prestadores,
+    contatosByPrestador,
+    search,
+    categoriaFilter,
+    statusFilter,
+    confiancaFilter,
+    cidadeFilter,
+    whatsappFilter,
+    emailFilter,
+    avaliacaoFilter,
+  ]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -427,7 +473,7 @@ export default function Prestadores() {
         ))}
       </div>
 
-      <div className="filter-bar rounded-lg p-2 grid grid-cols-1 lg:grid-cols-[minmax(240px,1fr)_180px_160px_170px] gap-2">
+      <div className="filter-bar rounded-lg p-2 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
           <Input
@@ -437,6 +483,17 @@ export default function Prestadores() {
             className="pl-9 h-9 text-sm"
           />
         </div>
+        <Select value={cidadeFilter} onValueChange={setCidadeFilter}>
+          <SelectTrigger className="h-9 text-xs">
+            <SelectValue placeholder="Cidade/UF" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>Todas cidades</SelectItem>
+            {cidadeOptions.map((cidade) => (
+              <SelectItem key={cidade} value={cidade}>{cidade}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
           <SelectTrigger className="h-9 text-xs">
             <SelectValue placeholder="Categoria" />
@@ -476,6 +533,55 @@ export default function Prestadores() {
             ))}
           </SelectContent>
         </Select>
+        <Select value={whatsappFilter} onValueChange={setWhatsappFilter}>
+          <SelectTrigger className="h-9 text-xs">
+            <SelectValue placeholder="WhatsApp" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>Todos WhatsApp</SelectItem>
+            <SelectItem value="com">Com WhatsApp</SelectItem>
+            <SelectItem value="sem">Sem WhatsApp</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={emailFilter} onValueChange={setEmailFilter}>
+          <SelectTrigger className="h-9 text-xs">
+            <SelectValue placeholder="E-mail" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>Todos e-mails</SelectItem>
+            <SelectItem value="com">Com e-mail</SelectItem>
+            <SelectItem value="sem">Sem e-mail</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={avaliacaoFilter} onValueChange={setAvaliacaoFilter}>
+          <SelectTrigger className="h-9 text-xs">
+            <SelectValue placeholder="Avaliação" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_VALUE}>Todas notas</SelectItem>
+            <SelectItem value="3">3+</SelectItem>
+            <SelectItem value="4">4+</SelectItem>
+            <SelectItem value="5">5</SelectItem>
+          </SelectContent>
+        </Select>
+        {hasActiveFilters && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 text-xs"
+            onClick={() => {
+              setCategoriaFilter(ALL_VALUE);
+              setStatusFilter(ALL_VALUE);
+              setConfiancaFilter(ALL_VALUE);
+              setCidadeFilter(ALL_VALUE);
+              setWhatsappFilter(ALL_VALUE);
+              setEmailFilter(ALL_VALUE);
+              setAvaliacaoFilter(ALL_VALUE);
+            }}
+          >
+            Limpar filtros
+          </Button>
+        )}
       </div>
 
       {isLoading ? (
