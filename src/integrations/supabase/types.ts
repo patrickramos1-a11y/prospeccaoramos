@@ -67,6 +67,7 @@ export type Database = {
       estoque_itens: {
         Row: {
           categoria: string
+          compra_url: string | null
           created_at: string
           custo_unitario: number
           fornecedor: string | null
@@ -81,6 +82,7 @@ export type Database = {
         }
         Insert: {
           categoria?: string
+          compra_url?: string | null
           created_at?: string
           custo_unitario?: number
           fornecedor?: string | null
@@ -95,6 +97,7 @@ export type Database = {
         }
         Update: {
           categoria?: string
+          compra_url?: string | null
           created_at?: string
           custo_unitario?: number
           fornecedor?: string | null

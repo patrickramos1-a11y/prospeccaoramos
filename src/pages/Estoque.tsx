@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
   Package, Plus, Search, AlertCircle, ArrowDown, ArrowUp,
-  TrendingDown, Boxes, Pencil, Trash2, X, Check, Layers, Image, Upload, Paperclip
+  TrendingDown, Boxes, Pencil, Trash2, X, Check, Layers, Upload, Paperclip,
+  Eye, ExternalLink, Link2, ShoppingCart
 } from "lucide-react";
 import { EstoqueDocumentosManager } from "@/components/EstoqueDocumentosManager";
 import { Input } from "@/components/ui/input";
@@ -30,6 +31,7 @@ interface EstoqueItem {
   custo_unitario: number;
   fornecedor: string | null;
   imagem_url: string | null;
+  compra_url: string | null;
   created_at: string;
 }
 
@@ -71,14 +73,14 @@ export default function Estoque() {
   // New item form
   const [newItem, setNewItem] = useState({
     nome: "", categoria: "", unidade: "unidade", saldo_atual: 0,
-    minimo: 0, ideal: 0, custo_unitario: 0, fornecedor: "",
+    minimo: 0, ideal: 0, custo_unitario: 0, fornecedor: "", compra_url: "",
   });
   const [newItemImage, setNewItemImage] = useState<File | null>(null);
 
   // Edit form
   const [editForm, setEditForm] = useState({
     nome: "", categoria: "", unidade: "", saldo_atual: 0,
-    minimo: 0, ideal: 0, custo_unitario: 0, fornecedor: "",
+    minimo: 0, ideal: 0, custo_unitario: 0, fornecedor: "", compra_url: "",
   });
   const [editImage, setEditImage] = useState<File | null>(null);
 
@@ -161,10 +163,27 @@ export default function Estoque() {
     return urlData.publicUrl;
   };
 
+  const normalizePurchaseUrl = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const withProtocol = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+    try {
+      const parsed = new URL(withProtocol);
+      return ["http:", "https:"].includes(parsed.protocol) ? parsed.toString() : null;
+    } catch {
+      return null;
+    }
+  };
+
   // CRUD handlers
   const handleCreateItem = async () => {
     if (!newItem.nome.trim() || !newItem.categoria) {
       toast({ title: "Preencha nome e categoria", variant: "destructive" });
+      return;
+    }
+    const compra_url = normalizePurchaseUrl(newItem.compra_url);
+    if (newItem.compra_url.trim() && !compra_url) {
+      toast({ title: "Link de compra inválido", description: "Informe um endereço como loja.com/produto ou https://loja.com/produto.", variant: "destructive" });
       return;
     }
     let imagem_url: string | null = null;
@@ -175,13 +194,13 @@ export default function Estoque() {
       nome: newItem.nome, categoria: newItem.categoria, unidade: newItem.unidade,
       saldo_atual: newItem.saldo_atual, minimo: newItem.minimo, ideal: newItem.ideal,
       custo_unitario: newItem.custo_unitario, fornecedor: newItem.fornecedor || null,
-      imagem_url,
+      imagem_url, compra_url,
     });
     if (error) {
       toast({ title: "Erro ao cadastrar", description: error.message, variant: "destructive" });
       return;
     }
-    setNewItem({ nome: "", categoria: "", unidade: "unidade", saldo_atual: 0, minimo: 0, ideal: 0, custo_unitario: 0, fornecedor: "" });
+    setNewItem({ nome: "", categoria: "", unidade: "unidade", saldo_atual: 0, minimo: 0, ideal: 0, custo_unitario: 0, fornecedor: "", compra_url: "" });
     setNewItemImage(null);
     setShowNewItem(false);
     toast({ title: "Item cadastrado!" });
@@ -193,6 +212,7 @@ export default function Estoque() {
       nome: item.nome, categoria: item.categoria, unidade: item.unidade,
       saldo_atual: item.saldo_atual, minimo: item.minimo, ideal: item.ideal,
       custo_unitario: item.custo_unitario, fornecedor: item.fornecedor || "",
+      compra_url: item.compra_url || "",
     });
     setEditImage(null);
     setEditingItem(item);
@@ -200,6 +220,11 @@ export default function Estoque() {
 
   const handleSaveEdit = async () => {
     if (!editingItem) return;
+    const compra_url = normalizePurchaseUrl(editForm.compra_url);
+    if (editForm.compra_url.trim() && !compra_url) {
+      toast({ title: "Link de compra inválido", description: "Informe um endereço como loja.com/produto ou https://loja.com/produto.", variant: "destructive" });
+      return;
+    }
     let imagem_url = editingItem.imagem_url;
     if (editImage) {
       imagem_url = await uploadImage(editImage);
@@ -208,7 +233,7 @@ export default function Estoque() {
       nome: editForm.nome, categoria: editForm.categoria, unidade: editForm.unidade,
       saldo_atual: editForm.saldo_atual, minimo: editForm.minimo, ideal: editForm.ideal,
       custo_unitario: editForm.custo_unitario, fornecedor: editForm.fornecedor || null,
-      imagem_url,
+      imagem_url, compra_url,
     }).eq("id", editingItem.id);
     if (error) {
       toast({ title: "Erro ao atualizar", description: error.message, variant: "destructive" });
@@ -478,7 +503,12 @@ export default function Estoque() {
                   const pct = item.ideal > 0 ? Math.min((item.saldo_atual / item.ideal) * 100, 100) : 0;
                   return (
                     <article key={item.id} className="group overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg">
-                      <div className="relative aspect-[16/9] min-h-48 overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(item)}
+                        className="relative block aspect-[16/9] min-h-48 w-full overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+                        aria-label={`Visualizar e editar ${item.nome}`}
+                      >
                         {item.imagem_url ? (
                           <img src={item.imagem_url} alt={item.nome} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
                         ) : (
@@ -512,7 +542,7 @@ export default function Estoque() {
                             )}
                           </div>
                         </div>
-                      </div>
+                      </button>
 
                       <div className="p-3">
                         <div className="flex items-end justify-between gap-4">
@@ -534,6 +564,10 @@ export default function Estoque() {
                             <span>Cadastrado {new Date(item.created_at).toLocaleDateString("pt-BR")}</span>
                           </div>
                           <div className="flex gap-0.5">
+                            <button aria-label={`Visualizar ${item.nome}`} onClick={() => openEdit(item)} className="p-2 hover:bg-primary/10 rounded-lg transition-colors text-primary" title="Visualizar e editar"><Eye className="w-3.5 h-3.5" /></button>
+                            {item.compra_url && (
+                              <a aria-label={`Abrir link de compra de ${item.nome}`} href={item.compra_url} target="_blank" rel="noreferrer" className="p-2 hover:bg-primary/10 rounded-lg transition-colors text-primary" title="Comprar ou repor"><ShoppingCart className="w-3.5 h-3.5" /></a>
+                            )}
                             <button aria-label={`Registrar entrada de ${item.nome}`} onClick={() => openEntrada(item.id)} className="p-2 hover:bg-secondary rounded-lg transition-colors text-status-visited" title="Entrada"><ArrowDown className="w-3.5 h-3.5" /></button>
                             <button aria-label={`Registrar saída de ${item.nome}`} onClick={() => openSaida(item.id)} className="p-2 hover:bg-accent/15 rounded-lg transition-colors text-accent-foreground" title="Saída"><ArrowUp className="w-3.5 h-3.5" /></button>
                             <button aria-label={`Editar ${item.nome}`} onClick={() => openEdit(item)} className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
@@ -643,6 +677,14 @@ export default function Estoque() {
               <div className="space-y-1.5"><Label className="text-xs">Custo unitário (R$)</Label><Input type="number" min={0} step={0.01} value={newItem.custo_unitario} onChange={e => setNewItem(p => ({ ...p, custo_unitario: Number(e.target.value) }))} /></div>
               <div className="space-y-1.5"><Label className="text-xs">Fornecedor</Label><Input placeholder="Ex: Gráfica Central" value={newItem.fornecedor} onChange={e => setNewItem(p => ({ ...p, fornecedor: e.target.value }))} /></div>
             </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Link para compra ou reposição</Label>
+              <div className="relative">
+                <Link2 className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input type="url" inputMode="url" placeholder="https://loja.com/produto" value={newItem.compra_url} onChange={e => setNewItem(p => ({ ...p, compra_url: e.target.value }))} className="pl-9" />
+              </div>
+              <p className="text-[10px] text-muted-foreground">Cole o endereço do fornecedor para facilitar a próxima compra.</p>
+            </div>
           </div>
           <SheetFooter className="gap-2">
             <Button variant="outline" onClick={() => setShowNewItem(false)} className="flex-1">Cancelar</Button>
@@ -653,9 +695,39 @@ export default function Estoque() {
 
       {/* Sheet: Editar Item */}
       <Sheet open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
-        <SheetContent side="bottom" className="h-[85vh] overflow-y-auto rounded-t-lg bg-background">
-          <SheetHeader><SheetTitle className="font-display text-lg">Editar Item</SheetTitle></SheetHeader>
-          <div className="space-y-3 py-4">
+        <SheetContent side="bottom" className="h-[92vh] overflow-y-auto rounded-t-xl bg-background">
+          <SheetHeader>
+            <SheetTitle className="font-display text-lg">Detalhes do item</SheetTitle>
+            <p className="text-xs text-muted-foreground">Visualize as informações e edite o que precisar.</p>
+          </SheetHeader>
+          <div className="mx-auto max-w-3xl space-y-4 py-4">
+            {editingItem && (
+              <div className="relative aspect-[16/7] min-h-52 overflow-hidden rounded-xl border border-border bg-gradient-to-br from-primary/15 via-secondary to-accent/10">
+                {editingItem.imagem_url ? (
+                  <img src={editingItem.imagem_url} alt={editingItem.nome} className="h-full w-full object-contain" />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center text-primary/35">
+                    <Package className="h-16 w-16" strokeWidth={1.25} />
+                    <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em]">Sem imagem</span>
+                  </div>
+                )}
+                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/80 to-transparent p-4 text-white">
+                  <div className="min-w-0">
+                    <Badge className="mb-2 border-white/25 bg-white/90 text-[9px] text-foreground hover:bg-white">{editingItem.categoria}</Badge>
+                    <h3 className="truncate font-display text-lg font-bold">{editingItem.nome}</h3>
+                    <p className="text-[10px] text-white/75">{editingItem.fornecedor || "Sem fornecedor"}</p>
+                  </div>
+                  {editingItem.compra_url && (
+                    <Button asChild size="sm" className="flex-shrink-0 bg-white text-foreground hover:bg-white/90">
+                      <a href={editingItem.compra_url} target="_blank" rel="noreferrer">
+                        <ShoppingCart className="mr-1.5 h-3.5 w-3.5" /> Comprar / repor <ExternalLink className="ml-1.5 h-3 w-3" />
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+            <div className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-3">
             <div className="space-y-1.5"><Label className="text-xs">Nome</Label><Input value={editForm.nome} onChange={e => setEditForm(p => ({ ...p, nome: e.target.value }))} /></div>
             <ImageInput file={editImage} onChange={setEditImage} currentUrl={editingItem?.imagem_url} />
             <div className="grid grid-cols-2 gap-3">
@@ -687,13 +759,28 @@ export default function Estoque() {
               <div className="space-y-1.5"><Label className="text-xs">Custo unit. (R$)</Label><Input type="number" min={0} step={0.01} value={editForm.custo_unitario} onChange={e => setEditForm(p => ({ ...p, custo_unitario: Number(e.target.value) }))} /></div>
               <div className="space-y-1.5"><Label className="text-xs">Fornecedor</Label><Input value={editForm.fornecedor} onChange={e => setEditForm(p => ({ ...p, fornecedor: e.target.value }))} /></div>
             </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-xs">Link para compra ou reposição</Label>
+                {normalizePurchaseUrl(editForm.compra_url) && (
+                  <a href={normalizePurchaseUrl(editForm.compra_url)!} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary hover:underline">
+                    Testar link <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+              </div>
+              <div className="relative">
+                <Link2 className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <Input type="url" inputMode="url" placeholder="https://loja.com/produto" value={editForm.compra_url} onChange={e => setEditForm(p => ({ ...p, compra_url: e.target.value }))} className="pl-9" />
+              </div>
+            </div>
+            </div>
             {editingItem && (
               <EstoqueDocumentosManager itemId={editingItem.id} onChange={fetchAll} />
             )}
           </div>
           <SheetFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEditingItem(null)} className="flex-1">Cancelar</Button>
-            <Button onClick={handleSaveEdit} className="flex-1">Salvar</Button>
+            <Button variant="outline" onClick={() => setEditingItem(null)} className="flex-1">Fechar</Button>
+            <Button onClick={handleSaveEdit} className="flex-1"><Check className="mr-1.5 h-3.5 w-3.5" /> Salvar alterações</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
