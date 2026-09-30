@@ -1387,20 +1387,20 @@ export default function Estoque() {
           </SheetHeader>
           <div className="mx-auto max-w-3xl space-y-4 py-4">
             {editingItem && (
-              <div className="relative aspect-[16/7] min-h-52 overflow-hidden rounded-xl border border-border bg-gradient-to-br from-primary/15 via-secondary to-accent/10">
+              <div className="relative h-36 overflow-hidden rounded-xl border border-border bg-gradient-to-br from-primary/15 via-secondary to-accent/10 sm:aspect-[16/7] sm:h-auto sm:min-h-52">
                 {editingItem.imagem_url ? (
-                  <img src={editingItem.imagem_url} alt={editingItem.nome} className="h-full w-full object-contain" />
+                  <img src={editingItem.imagem_url} alt={editingItem.nome} className="h-full w-full object-cover sm:object-contain" />
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center text-primary/35">
                     <Package className="h-16 w-16" strokeWidth={1.25} />
                     <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em]">Sem imagem</span>
                   </div>
                 )}
-                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 bg-gradient-to-t from-black/80 to-transparent p-4 text-white">
+                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 bg-gradient-to-t from-black/80 to-transparent p-2.5 text-white sm:gap-3 sm:p-4">
                   <div className="min-w-0">
-                    <Badge className="mb-2 border-white/25 bg-white/90 text-[9px] text-foreground hover:bg-white">{editingItem.categoria}</Badge>
-                    <h3 className="truncate font-display text-lg font-bold">{editingItem.nome}</h3>
-                    <p className="text-[10px] text-white/75">{editingItem.fornecedor || "Sem fornecedor"}</p>
+                    <Badge className="mb-1 border-white/25 bg-white/90 px-1.5 text-[8px] text-foreground hover:bg-white sm:mb-2 sm:text-[9px]">{editingItem.categoria}</Badge>
+                    <h3 className="truncate font-display text-sm font-bold sm:text-lg">{editingItem.nome}</h3>
+                    <p className="text-[9px] text-white/75 sm:text-[10px]">{editingItem.fornecedor || "Sem fornecedor"}</p>
                   </div>
                   {editingItem.compra_url && (
                     <Button asChild size="sm" className="flex-shrink-0 bg-white text-foreground hover:bg-white/90">
