@@ -923,18 +923,18 @@ export default function Estoque() {
 
       {/* KPIs */}
       {activeTab === "itens" && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          <div className="metric-card flex items-center gap-2 p-3 rounded-lg">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center"><Boxes className="w-4 h-4 text-primary" /></div>
-            <div><p className="font-bold text-lg text-foreground leading-none">{totalItens}</p><p className="text-[9px] text-muted-foreground mt-0.5">Tipos</p></div>
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+          <div className="metric-card flex min-w-0 items-center gap-1.5 rounded-lg p-2 sm:gap-2 sm:p-3">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 sm:h-8 sm:w-8"><Boxes className="h-3.5 w-3.5 text-primary sm:h-4 sm:w-4" /></div>
+            <div className="min-w-0"><p className="truncate text-base font-bold leading-none text-foreground sm:text-lg">{totalItens}</p><p className="mt-0.5 truncate text-[8px] text-muted-foreground sm:text-[9px]">Tipos</p></div>
           </div>
-          <div className={cn("metric-card flex items-center gap-2 p-3 rounded-lg", alertaCount > 0 ? "border-destructive/30" : "border-border")}>
-            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", alertaCount > 0 ? "bg-destructive/10" : "bg-muted")}><AlertCircle className={cn("w-4 h-4", alertaCount > 0 ? "text-destructive" : "text-muted-foreground")} /></div>
-            <div><p className={cn("font-bold text-lg leading-none", alertaCount > 0 ? "text-destructive" : "text-foreground")}>{alertaCount}</p><p className="text-[9px] text-muted-foreground mt-0.5">Alertas</p></div>
+          <div className={cn("metric-card flex min-w-0 items-center gap-1.5 rounded-lg p-2 sm:gap-2 sm:p-3", alertaCount > 0 ? "border-destructive/30" : "border-border")}>
+            <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg sm:h-8 sm:w-8", alertaCount > 0 ? "bg-destructive/10" : "bg-muted")}><AlertCircle className={cn("h-3.5 w-3.5 sm:h-4 sm:w-4", alertaCount > 0 ? "text-destructive" : "text-muted-foreground")} /></div>
+            <div className="min-w-0"><p className={cn("truncate text-base font-bold leading-none sm:text-lg", alertaCount > 0 ? "text-destructive" : "text-foreground")}>{alertaCount}</p><p className="mt-0.5 truncate text-[8px] text-muted-foreground sm:text-[9px]">Alertas</p></div>
           </div>
-          <div className="metric-card flex items-center gap-2 p-3 rounded-lg">
-            <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center"><TrendingDown className="w-4 h-4 text-accent-foreground" /></div>
-            <div><p className="font-bold text-base text-foreground leading-none">R${valorTotal.toFixed(0)}</p><p className="text-[9px] text-muted-foreground mt-0.5">Valor</p></div>
+          <div className="metric-card flex min-w-0 items-center gap-1.5 rounded-lg p-2 sm:gap-2 sm:p-3">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent/10 sm:h-8 sm:w-8"><TrendingDown className="h-3.5 w-3.5 text-accent-foreground sm:h-4 sm:w-4" /></div>
+            <div className="min-w-0"><p className="truncate text-sm font-bold leading-none text-foreground sm:text-base">R${valorTotal.toFixed(0)}</p><p className="mt-0.5 truncate text-[8px] text-muted-foreground sm:text-[9px]">Valor</p></div>
           </div>
         </div>
       )}
@@ -1006,38 +1006,46 @@ export default function Estoque() {
               )}
             </div>
           )}
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-[repeat(auto-fill,minmax(260px,1fr))] sm:gap-3">
                 {filtered.map((item) => {
                   const st = getEstoqueStatus(item);
                   const pct = item.ideal > 0 ? Math.min((item.saldo_atual / item.ideal) * 100, 100) : 0;
                   return (
-                    <article key={item.id} className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg">
+                    <article key={item.id} className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg sm:rounded-xl">
                       <button
                         type="button"
                         onClick={() => openEdit(item)}
-                        className="relative block aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+                        className="relative block aspect-square w-full overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset sm:aspect-[4/3]"
                         aria-label={`Visualizar e editar ${item.nome}`}
                       >
                         {item.imagem_url ? (
                           <img src={item.imagem_url} alt={item.nome} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
                         ) : (
                           <div className="flex h-full w-full flex-col items-center justify-center text-primary/35">
-                            <Package className="h-14 w-14" strokeWidth={1.25} />
-                            <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em]">Sem imagem</span>
+                            <Package className="h-7 w-7 sm:h-14 sm:w-14" strokeWidth={1.25} />
+                            <span className="mt-1 text-[7px] font-semibold uppercase tracking-[0.12em] sm:mt-2 sm:text-[10px] sm:tracking-[0.18em]">Sem imagem</span>
                           </div>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-black/5" />
 
-                        <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
-                          <Badge className="border-white/25 bg-white/90 px-2 text-[9px] font-bold text-foreground shadow-sm backdrop-blur-sm hover:bg-white">
+                        <div className="absolute left-1.5 right-1.5 top-1.5 flex items-start justify-between gap-1 sm:left-3 sm:right-3 sm:top-3 sm:gap-2">
+                          <Badge className="max-w-full truncate border-white/25 bg-white/90 px-1 py-0 text-[7px] font-bold text-foreground shadow-sm backdrop-blur-sm hover:bg-white sm:px-2 sm:text-[9px]">
                             {item.categoria}
                           </Badge>
-                          <Badge className={cn("border-0 px-2 text-[9px] font-bold shadow-sm", st.color)} variant="secondary">{st.label}</Badge>
+                          <Badge className={cn("hidden border-0 px-2 text-[9px] font-bold shadow-sm sm:inline-flex", st.color)} variant="secondary">{st.label}</Badge>
                         </div>
 
                       </button>
 
-                      <div className="flex flex-1 flex-col p-3">
+                      <button type="button" onClick={() => openEdit(item)} className="flex flex-1 flex-col p-1.5 text-left sm:hidden" aria-label={`Abrir detalhes de ${item.nome}`}>
+                        <h3 className="line-clamp-2 min-h-7 font-display text-[9px] font-bold leading-tight text-foreground">{item.nome}</h3>
+                        <div className="mt-auto flex items-baseline gap-0.5 pt-1">
+                          <span className={cn("text-xs font-bold", item.saldo_atual < item.minimo ? "text-destructive" : "text-primary")}>{item.saldo_atual}</span>
+                          <span className="truncate text-[7px] text-muted-foreground">{item.unidade}(s)</span>
+                        </div>
+                      </button>
+
+                      <div className="hidden flex-1 flex-col p-3 sm:flex">
                         <div className="min-w-0">
                           <h3 className="line-clamp-2 min-h-9 font-display text-sm font-bold leading-[1.15] text-foreground">{item.nome}</h3>
                           {docCounts[item.id] > 0 && <span className="mt-1.5 flex items-center gap-1 text-[10px] font-medium text-primary"><Paperclip className="h-2.5 w-2.5" /> {docCounts[item.id]} {docCounts[item.id] === 1 ? "arquivo vinculado" : "arquivos vinculados"}</span>}
