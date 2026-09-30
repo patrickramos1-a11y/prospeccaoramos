@@ -30,6 +30,7 @@ interface EstoqueItem {
   custo_unitario: number;
   fornecedor: string | null;
   imagem_url: string | null;
+  created_at: string;
 }
 
 interface PackItem {
@@ -54,6 +55,7 @@ export default function Estoque() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [categoriaFilter, setCategoriaFilter] = useState("todas");
+  const [sortBy, setSortBy] = useState<"recentes" | "nome" | "estoque">("recentes");
   const [activeTab, setActiveTab] = useState<"itens" | "packs">("itens");
 
   // Sheets
@@ -116,11 +118,21 @@ export default function Estoque() {
   };
 
   const categorias = ["todas", ...Array.from(new Set(itens.map((i) => i.categoria)))];
-  const filtered = itens.filter((item) => {
-    const matchSearch = item.nome.toLowerCase().includes(search.toLowerCase());
-    const matchCat = categoriaFilter === "todas" || item.categoria === categoriaFilter;
-    return matchSearch && matchCat;
-  });
+  const filtered = itens
+    .filter((item) => {
+      const query = search.trim().toLowerCase();
+      const matchSearch = !query
+        || item.nome.toLowerCase().includes(query)
+        || item.categoria.toLowerCase().includes(query)
+        || item.fornecedor?.toLowerCase().includes(query);
+      const matchCat = categoriaFilter === "todas" || item.categoria === categoriaFilter;
+      return matchSearch && matchCat;
+    })
+    .sort((a, b) => {
+      if (sortBy === "recentes") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      if (sortBy === "estoque") return a.saldo_atual - b.saldo_atual;
+      return a.nome.localeCompare(b.nome, "pt-BR");
+    });
   const filteredPacks = packs.filter(p => p.nome.toLowerCase().includes(search.toLowerCase()));
 
   const totalItens = itens.length;
@@ -421,80 +433,118 @@ export default function Estoque() {
         </div>
       )}
 
-      {/* Search */}
-      <div className="filter-bar rounded-lg p-2 flex flex-col sm:flex-row gap-2">
+      {/* Search and discovery controls */}
+      <div className="filter-bar rounded-lg p-2 flex flex-col lg:flex-row gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input placeholder={activeTab === "itens" ? "Buscar item..." : "Buscar pack..."} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
+          <Input placeholder={activeTab === "itens" ? "Buscar item, categoria ou fornecedor..." : "Buscar pack..."} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
         </div>
         {activeTab === "itens" && (
-          <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
-            <SelectTrigger className="h-9 text-xs w-28"><SelectValue /></SelectTrigger>
-            <SelectContent>{categorias.map((c) => (<SelectItem key={c} value={c} className="text-xs capitalize">{c === "todas" ? "Todas" : c}</SelectItem>))}</SelectContent>
-          </Select>
+          <div className="grid grid-cols-2 gap-2 lg:flex">
+            <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
+              <SelectTrigger className="h-9 text-xs lg:w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>{categorias.map((c) => (<SelectItem key={c} value={c} className="text-xs capitalize">{c === "todas" ? "Todas as categorias" : c}</SelectItem>))}</SelectContent>
+            </Select>
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
+              <SelectTrigger className="h-9 text-xs lg:w-40"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="recentes" className="text-xs">Mais recentes</SelectItem>
+                <SelectItem value="nome" className="text-xs">Nome (A–Z)</SelectItem>
+                <SelectItem value="estoque" className="text-xs">Menor estoque</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         )}
       </div>
 
-      {/* ITENS LIST */}
+      {/* VISUAL ITEM GALLERY */}
       {activeTab === "itens" && (
-        <div className="space-y-2">
-          {filtered.map((item) => {
-            const st = getEstoqueStatus(item);
-            const pct = item.ideal > 0 ? Math.min((item.saldo_atual / item.ideal) * 100, 100) : 0;
-            return (
-              <Card key={item.id} className="entity-card">
-                <CardContent className="p-3">
-                  <div className="flex items-start gap-3">
-                    {item.imagem_url ? (
-                      <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 mt-0.5">
-                        <img src={item.imagem_url} alt={item.nome} className="w-full h-full object-cover" />
-                      </div>
-                    ) : (
-                      <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <Package className="w-4 h-4 text-muted-foreground" />
-                      </div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="font-medium text-sm text-foreground truncate">{item.nome}</p>
-                          <p className="text-[10px] text-muted-foreground">{item.fornecedor || "Sem fornecedor"}</p>
+        <div className="space-y-3">
+          {filtered.length > 0 && (
+            <div className="flex items-center justify-between px-1">
+              <p className="text-xs font-medium text-muted-foreground">
+                {filtered.length} {filtered.length === 1 ? "item encontrado" : "itens encontrados"}
+              </p>
+              {categoriaFilter !== "todas" && (
+                <button onClick={() => setCategoriaFilter("todas")} className="text-[10px] font-semibold text-primary hover:underline">
+                  Limpar categoria
+                </button>
+              )}
+            </div>
+          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {filtered.map((item) => {
+                  const st = getEstoqueStatus(item);
+                  const pct = item.ideal > 0 ? Math.min((item.saldo_atual / item.ideal) * 100, 100) : 0;
+                  return (
+                    <article key={item.id} className="group overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg">
+                      <div className="relative aspect-[16/9] min-h-48 overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10">
+                        {item.imagem_url ? (
+                          <img src={item.imagem_url} alt={item.nome} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+                        ) : (
+                          <div className="flex h-full w-full flex-col items-center justify-center text-primary/35">
+                            <Package className="h-14 w-14" strokeWidth={1.25} />
+                            <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em]">Sem imagem</span>
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/5" />
+
+                        <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
+                          <Badge className="border-white/25 bg-white/90 px-2 text-[9px] font-bold text-foreground shadow-sm backdrop-blur-sm hover:bg-white">
+                            {item.categoria}
+                          </Badge>
+                          <Badge className={cn("border-0 px-2 text-[9px] font-bold shadow-sm", st.color)} variant="secondary">{st.label}</Badge>
                         </div>
-                        <Badge className={cn("text-[9px] flex-shrink-0 font-semibold", st.color)} variant="secondary">{st.label}</Badge>
-                      </div>
-                      <div className="flex items-center gap-3 mt-2">
-                        <div className="flex-1">
-                          <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                            <div className={cn("h-full rounded-full", st.barColor)} style={{ width: `${pct}%` }} />
+
+                        <div className="absolute inset-x-0 bottom-0 p-4 text-white">
+                          <h3 className="font-display text-base font-bold leading-tight drop-shadow-sm">{item.nome}</h3>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            <span className="rounded-full border border-white/20 bg-black/35 px-2 py-1 text-[9px] font-medium backdrop-blur-md">
+                              {item.fornecedor || "Sem fornecedor"}
+                            </span>
+                            <span className="rounded-full border border-white/20 bg-black/35 px-2 py-1 text-[9px] font-medium backdrop-blur-md">
+                              R$ {item.custo_unitario.toFixed(2)}/{item.unidade}
+                            </span>
+                            {docCounts[item.id] > 0 && (
+                              <span className="flex items-center gap-1 rounded-full border border-white/20 bg-black/35 px-2 py-1 text-[9px] font-medium backdrop-blur-md">
+                                <Paperclip className="h-2.5 w-2.5" /> {docCounts[item.id]} {docCounts[item.id] === 1 ? "arquivo" : "arquivos"}
+                              </span>
+                            )}
                           </div>
                         </div>
-                        <span className="text-xs font-bold text-foreground">{item.saldo_atual}</span>
-                        <span className="text-[10px] text-muted-foreground">/ {item.ideal}</span>
                       </div>
-                      <div className="flex items-center justify-between mt-2">
-                        <div className="flex items-center gap-1">
-                          <Badge variant="outline" className="text-[9px] px-1.5">{item.categoria}</Badge>
-                          <span className="text-[10px] text-muted-foreground">R$ {item.custo_unitario.toFixed(2)}/{item.unidade}</span>
-                          {docCounts[item.id] > 0 && (
-                            <Badge variant="secondary" className="text-[9px] px-1.5 gap-0.5 bg-primary/10 text-primary">
-                              <Paperclip className="w-2.5 h-2.5" />
-                              {docCounts[item.id]}
-                            </Badge>
-                          )}
+
+                      <div className="p-3">
+                        <div className="flex items-end justify-between gap-4">
+                          <div>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Saldo disponível</p>
+                            <p className="mt-0.5 text-xl font-bold leading-none text-foreground">
+                              {item.saldo_atual} <span className="text-[10px] font-medium text-muted-foreground">{item.unidade}(s)</span>
+                            </p>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">Meta: <span className="font-semibold text-foreground">{item.ideal}</span></p>
                         </div>
-                        <div className="flex gap-0.5">
-                          <button onClick={() => openEntrada(item.id)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-status-visited" title="Entrada"><ArrowDown className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => openSaida(item.id)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-accent-foreground" title="Saída"><ArrowUp className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => openEdit(item)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
-                          <button onClick={() => handleDelete(item.id)} className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors text-destructive/60" title="Excluir"><Trash2 className="w-3.5 h-3.5" /></button>
+                        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+                          <div className={cn("h-full rounded-full transition-all", st.barColor)} style={{ width: `${pct}%` }} />
+                        </div>
+                        <div className="mt-3 flex items-center justify-between border-t border-border/70 pt-2">
+                          <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground">
+                            <span>Mínimo: {item.minimo}</span>
+                            <span aria-hidden="true">•</span>
+                            <span>Cadastrado {new Date(item.created_at).toLocaleDateString("pt-BR")}</span>
+                          </div>
+                          <div className="flex gap-0.5">
+                            <button aria-label={`Registrar entrada de ${item.nome}`} onClick={() => openEntrada(item.id)} className="p-2 hover:bg-secondary rounded-lg transition-colors text-status-visited" title="Entrada"><ArrowDown className="w-3.5 h-3.5" /></button>
+                            <button aria-label={`Registrar saída de ${item.nome}`} onClick={() => openSaida(item.id)} className="p-2 hover:bg-accent/15 rounded-lg transition-colors text-accent-foreground" title="Saída"><ArrowUp className="w-3.5 h-3.5" /></button>
+                            <button aria-label={`Editar ${item.nome}`} onClick={() => openEdit(item)} className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
+                            <button aria-label={`Excluir ${item.nome}`} onClick={() => handleDelete(item.id)} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors text-destructive/60" title="Excluir"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                    </article>
+                  );
+                })}
+          </div>
           {filtered.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Package className="w-10 h-10 mb-3 opacity-30" />
