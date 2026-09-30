@@ -9,7 +9,6 @@ import {
 import { EstoqueDocumentosManager } from "@/components/EstoqueDocumentosManager";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -159,7 +158,13 @@ export default function Estoque() {
       if (sortBy === "maior-custo") return b.custo_unitario - a.custo_unitario;
       return a.nome.localeCompare(b.nome, "pt-BR");
     });
-  const filteredPacks = packs.filter(p => p.nome.toLowerCase().includes(search.toLowerCase()));
+  const filteredPacks = packs.filter((pack) => {
+    const query = search.trim().toLowerCase();
+    return !query
+      || pack.nome.toLowerCase().includes(query)
+      || pack.descricao?.toLowerCase().includes(query)
+      || pack.itens.some((packItem) => getItemName(packItem.item_id).toLowerCase().includes(query));
+  });
 
   const totalItens = itens.length;
   const alertaCount = itens.filter((i) => i.saldo_atual < i.minimo).length;
@@ -172,7 +177,22 @@ export default function Estoque() {
     return { label: "OK", color: "text-status-visited bg-status-visited/10", barColor: "bg-status-visited" };
   };
 
-  const getItemName = (id: string) => itens.find(i => i.id === id)?.nome || "—";
+  function getItemName(id: string) {
+    return itens.find((item) => item.id === id)?.nome || "—";
+  }
+
+  const getPackCoverItem = (pack: Pack) => pack.itens
+    .map((packItem) => itens.find((item) => item.id === packItem.item_id))
+    .find((item) => item?.imagem_url)
+    || pack.itens.map((packItem) => itens.find((item) => item.id === packItem.item_id)).find(Boolean);
+
+  const getPackCapacity = (pack: Pack) => {
+    if (pack.itens.length === 0) return 0;
+    return Math.min(...pack.itens.map((packItem) => {
+      const item = itens.find((candidate) => candidate.id === packItem.item_id);
+      return item && packItem.quantidade > 0 ? Math.floor(item.saldo_atual / packItem.quantidade) : 0;
+    }));
+  };
 
   // Image upload helper
   const uploadImage = async (file: File): Promise<string | null> => {
@@ -652,40 +672,90 @@ export default function Estoque() {
         </div>
       )}
 
-      {/* PACKS LIST */}
+      {/* PACKS CATALOG */}
       {activeTab === "packs" && (
-        <div className="space-y-2">
-          {filteredPacks.map((pack) => (
-            <Card key={pack.id} className="entity-card">
-              <CardContent className="p-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Layers className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="font-medium text-sm text-foreground truncate">{pack.nome}</p>
-                        <p className="text-[10px] text-muted-foreground">{pack.itens.length} itens</p>
+        <div className="space-y-3">
+          {filteredPacks.length > 0 && (
+            <p className="px-1 text-xs font-medium text-muted-foreground">
+              {filteredPacks.length} {filteredPacks.length === 1 ? "pack encontrado" : "packs encontrados"}
+            </p>
+          )}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+            {filteredPacks.map((pack) => {
+              const coverItem = getPackCoverItem(pack);
+              const totalUnits = pack.itens.reduce((sum, packItem) => sum + packItem.quantidade, 0);
+              const capacity = getPackCapacity(pack);
+              return (
+                <article key={pack.id} className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg">
+                  <button type="button" onClick={() => openEditPack(pack)} className="relative block aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset" aria-label={`Visualizar e editar ${pack.nome}`}>
+                    {coverItem?.imagem_url ? (
+                      <img src={coverItem.imagem_url} alt={`Imagem do item ${coverItem.nome}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+                    ) : (
+                      <div className="flex h-full w-full flex-col items-center justify-center text-primary/35">
+                        <Layers className="h-14 w-14" strokeWidth={1.25} />
+                        <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em]">Pack sem imagem</span>
+                      </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/5" />
+                    <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
+                      <Badge className="border-white/25 bg-white/90 px-2 text-[9px] font-bold text-foreground shadow-sm backdrop-blur-sm hover:bg-white">Pack</Badge>
+                      <Badge className="border-0 bg-primary/90 px-2 text-[9px] font-bold text-primary-foreground shadow-sm" variant="secondary">
+                        {pack.itens.length} {pack.itens.length === 1 ? "item" : "itens"}
+                      </Badge>
+                    </div>
+                    {coverItem && (
+                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-3 pt-8 text-[9px] text-white/85">
+                        Imagem vinculada: <span className="font-semibold text-white">{coverItem.nome}</span>
+                      </div>
+                    )}
+                  </button>
+
+                  <div className="flex flex-1 flex-col p-3">
+                    <div>
+                      <h3 className="line-clamp-2 min-h-9 font-display text-sm font-bold leading-[1.15] text-foreground">{pack.nome}</h3>
+                      <p className="mt-1 line-clamp-2 min-h-7 text-[10px] leading-snug text-muted-foreground">{pack.descricao || "Conjunto de materiais vinculados"}</p>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-muted/50 p-2">
+                      <div>
+                        <p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">Composição</p>
+                        <p className="mt-0.5 text-xs font-bold text-foreground">{totalUnits} unidade(s)</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">Disponível</p>
+                        <p className={cn("mt-0.5 text-xs font-bold", capacity > 0 ? "text-primary" : "text-destructive")}>{capacity} pack(s)</p>
                       </div>
                     </div>
-                    {pack.descricao && <p className="text-[11px] text-muted-foreground mt-1">{pack.descricao}</p>}
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {pack.itens.map(pi => (
-                        <Badge key={pi.id} variant="outline" className="text-[9px] px-1.5 bg-primary/5">
-                          {getItemName(pi.item_id)} ×{pi.quantidade}
+
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {pack.itens.slice(0, 3).map((packItem) => (
+                        <Badge key={packItem.id} variant="outline" className="max-w-full bg-primary/5 px-1.5 text-[9px] font-medium">
+                          <span className="truncate">{getItemName(packItem.item_id)}</span>&nbsp;×{packItem.quantidade}
                         </Badge>
                       ))}
+                      {pack.itens.length > 3 && <Badge variant="secondary" className="px-1.5 text-[9px]">+{pack.itens.length - 3}</Badge>}
                     </div>
-                    <div className="flex items-center justify-end gap-0.5 mt-2">
-                      <button onClick={() => openEditPack(pack)} className="p-1.5 hover:bg-muted rounded-lg transition-colors text-muted-foreground"><Pencil className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => handleDeletePack(pack.id)} className="p-1.5 hover:bg-destructive/10 rounded-lg transition-colors text-destructive/60"><Trash2 className="w-3.5 h-3.5" /></button>
+
+                    <div className="mt-auto grid grid-cols-[1fr_auto] gap-1.5 border-t border-border/70 pt-3">
+                      <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-[10px]" onClick={() => openEditPack(pack)}>
+                        <Eye className="mr-1 h-3 w-3" /> Ver pack
+                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button type="button" size="icon" variant="ghost" className="h-8 w-8" aria-label={`Mais ações para ${pack.nome}`}><MoreHorizontal className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem onSelect={() => openEditPack(pack)} className="text-xs"><Pencil className="mr-2 h-3.5 w-3.5" /> Editar pack</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onSelect={() => handleDeletePack(pack.id)} className="text-xs text-destructive focus:text-destructive"><Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir pack</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </article>
+              );
+            })}
+          </div>
           {filteredPacks.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
               <Layers className="w-10 h-10 mb-3 opacity-30" />
