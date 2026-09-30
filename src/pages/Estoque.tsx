@@ -5,10 +5,11 @@ import {
   Package, Plus, Search, AlertCircle, ArrowDown, ArrowUp,
   TrendingDown, Boxes, Pencil, Trash2, X, Check, Layers, Upload, Paperclip,
   Eye, ExternalLink, Link2, ShoppingCart, MoreHorizontal, Clock3, Store, Link2Off,
-  ClipboardList, Wrench, Send, CircleCheckBig
+  ClipboardList, Wrench, Send, CircleCheckBig, Palette, Truck, Building2, FileUp, CalendarDays, DollarSign
 } from "lucide-react";
 import { EstoqueDocumentosManager } from "@/components/EstoqueDocumentosManager";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -66,6 +67,49 @@ interface Solicitacao {
   observacao: string | null;
   status: "pendente" | "aprovada" | "atendida" | "cancelada";
   created_at: string;
+  workflow?: SolicitacaoWorkflow | null;
+}
+
+type WorkflowStage = "solicitacao" | "cotacao" | "aprovacao" | "arte" | "producao" | "concluida";
+
+interface SolicitacaoWorkflowItem {
+  item_id: string;
+  nome: string;
+  quantidade: number;
+  unidade: string;
+  valor_unitario: number;
+}
+
+interface SolicitacaoWorkflow {
+  version: 1;
+  origem: "externa" | "interna";
+  etapa: WorkflowStage;
+  itens: SolicitacaoWorkflowItem[];
+  fornecedor: string;
+  frete: number;
+  arte: "mesma" | "nova" | "desenvolver";
+  arte_url: string | null;
+  observacao: string;
+  etapas_em: Partial<Record<WorkflowStage, string>>;
+}
+
+const WORKFLOW_MARKER = "[[SOLICITACAO_WORKFLOW_V1]]";
+const WORKFLOW_STAGES: { value: WorkflowStage; label: string }[] = [
+  { value: "solicitacao", label: "Solicitação" },
+  { value: "cotacao", label: "Cotação" },
+  { value: "aprovacao", label: "Aprovação" },
+  { value: "arte", label: "Arte" },
+  { value: "producao", label: "Produção" },
+  { value: "concluida", label: "Concluída" },
+];
+
+function parseWorkflow(value: string | null): SolicitacaoWorkflow | null {
+  if (!value?.startsWith(WORKFLOW_MARKER)) return null;
+  try { return JSON.parse(value.slice(WORKFLOW_MARKER.length)) as SolicitacaoWorkflow; } catch { return null; }
+}
+
+function serializeWorkflow(value: SolicitacaoWorkflow) {
+  return `${WORKFLOW_MARKER}${JSON.stringify(value)}`;
 }
 
 interface PackMovimentacao {
@@ -107,6 +151,18 @@ export default function Estoque() {
   const [packMovQtd, setPackMovQtd] = useState(1);
   const [packMovObs, setPackMovObs] = useState("");
   const [showNewSolicitacao, setShowNewSolicitacao] = useState(false);
+  const [requestItemPickerOpen, setRequestItemPickerOpen] = useState(false);
+  const [requestNewItemId, setRequestNewItemId] = useState("");
+  const [requestNewItemQtd, setRequestNewItemQtd] = useState(1);
+  const [requestItems, setRequestItems] = useState<SolicitacaoWorkflowItem[]>([]);
+  const [requestOrigin, setRequestOrigin] = useState<"externa" | "interna">("externa");
+  const [requestSupplier, setRequestSupplier] = useState("");
+  const [requestShipping, setRequestShipping] = useState(0);
+  const [requestArt, setRequestArt] = useState<"mesma" | "nova" | "desenvolver">("mesma");
+  const [requestArtFile, setRequestArtFile] = useState<File | null>(null);
+  const [managingSolicitacao, setManagingSolicitacao] = useState<Solicitacao | null>(null);
+  const [manageWorkflow, setManageWorkflow] = useState<SolicitacaoWorkflow | null>(null);
+  const [manageArtFile, setManageArtFile] = useState<File | null>(null);
 
   // New item form
   const [newItem, setNewItem] = useState({
@@ -169,10 +225,13 @@ export default function Estoque() {
     setPacks(packsWithItens);
     if (solicitacoesRes.data) setSolicitacoes(solicitacoesRes.data.map((solicitacao) => {
       const isCadastroRequest = solicitacao.alvo_tipo === "livre" && solicitacao.titulo.startsWith("[CADASTRO] ");
+      const workflow = parseWorkflow(solicitacao.observacao);
       return {
         ...solicitacao,
         finalidade: isCadastroRequest ? "cadastro" : solicitacao.finalidade,
         titulo: isCadastroRequest ? solicitacao.titulo.replace(/^\[CADASTRO\]\s*/, "") : solicitacao.titulo,
+        observacao: workflow?.observacao || solicitacao.observacao,
+        workflow,
       } as Solicitacao;
     }));
     if (packMovimentacoesRes.data) setPackMovimentacoes(packMovimentacoesRes.data);
@@ -297,6 +356,17 @@ export default function Estoque() {
     } catch {
       return null;
     }
+  };
+
+  const uploadRequestArt = async (file: File) => {
+    const safeName = file.name.replace(/[^\w.-]+/g, "_");
+    const path = `solicitacoes/${crypto.randomUUID()}-${safeName}`;
+    const { error } = await supabase.storage.from("estoque-documentos").upload(path, file);
+    if (error) {
+      toast({ title: "Erro ao enviar arte", description: error.message, variant: "destructive" });
+      return null;
+    }
+    return supabase.storage.from("estoque-documentos").getPublicUrl(path).data.publicUrl;
   };
 
   // CRUD handlers
@@ -508,32 +578,69 @@ export default function Estoque() {
 
   const openSolicitacao = (target?: EstoqueItem | Pack, targetType?: "item" | "pack", finalidade: "cadastro" | "reposicao" | "consumo" = "cadastro") => {
     const isCadastro = finalidade === "cadastro";
+    const isPurchaseWorkflow = finalidade === "reposicao";
     setSolicitacaoForm({
       finalidade,
-      alvo_tipo: isCadastro ? "livre" : targetType || "item",
-      alvo_id: isCadastro ? "" : target?.id || "",
+      alvo_tipo: isCadastro || isPurchaseWorkflow ? "livre" : targetType || "item",
+      alvo_id: isCadastro || isPurchaseWorkflow ? "" : target?.id || "",
       titulo: target ? `${finalidade === "reposicao" ? "Repor" : finalidade === "consumo" ? "Consumir" : "Cadastrar"} ${target.nome}` : "",
       quantidade: 1,
       unidade: targetType === "pack" ? "pack" : target && "unidade" in target ? target.unidade : "unidade",
       observacao: "",
     });
+    setRequestItems(target ? [{
+      item_id: target.id,
+      nome: target.nome,
+      quantidade: 1,
+      unidade: targetType === "pack" ? "pack" : "unidade" in target ? target.unidade : "unidade",
+      valor_unitario: "custo_unitario" in target ? target.custo_unitario : getPackCost(target as Pack),
+    }] : []);
+    setRequestNewItemId("");
+    setRequestNewItemQtd(1);
+    setRequestOrigin("externa");
+    setRequestSupplier("");
+    setRequestShipping(0);
+    setRequestArt("mesma");
+    setRequestArtFile(null);
     setShowNewSolicitacao(true);
   };
 
   const handleCreateSolicitacao = async () => {
+    const isPurchaseWorkflow = solicitacaoForm.finalidade === "reposicao";
+    if (isPurchaseWorkflow && requestItems.length === 0) {
+      toast({ title: "Adicione pelo menos um item à solicitação", variant: "destructive" });
+      return;
+    }
     if (!solicitacaoForm.titulo.trim() || (solicitacaoForm.alvo_tipo !== "livre" && !solicitacaoForm.alvo_id)) {
       toast({ title: "Informe o pedido e o item ou pack", variant: "destructive" });
       return;
     }
+    let arteUrl: string | null = null;
+    if (isPurchaseWorkflow && requestArt === "nova" && requestArtFile) {
+      arteUrl = await uploadRequestArt(requestArtFile);
+      if (!arteUrl) return;
+    }
+    const workflow: SolicitacaoWorkflow | null = isPurchaseWorkflow ? {
+      version: 1,
+      origem: requestOrigin,
+      etapa: "solicitacao",
+      itens: requestItems,
+      fornecedor: requestSupplier.trim(),
+      frete: requestShipping,
+      arte: requestArt,
+      arte_url: arteUrl,
+      observacao: solicitacaoForm.observacao.trim(),
+      etapas_em: { solicitacao: new Date().toISOString() },
+    } : null;
     const { error } = await supabase.from("estoque_solicitacoes").insert({
       finalidade: solicitacaoForm.finalidade === "cadastro" ? "reposicao" : solicitacaoForm.finalidade,
-      alvo_tipo: solicitacaoForm.alvo_tipo,
-      item_id: solicitacaoForm.alvo_tipo === "item" ? solicitacaoForm.alvo_id : null,
-      pack_id: solicitacaoForm.alvo_tipo === "pack" ? solicitacaoForm.alvo_id : null,
+      alvo_tipo: isPurchaseWorkflow ? "livre" : solicitacaoForm.alvo_tipo,
+      item_id: !isPurchaseWorkflow && solicitacaoForm.alvo_tipo === "item" ? solicitacaoForm.alvo_id : null,
+      pack_id: !isPurchaseWorkflow && solicitacaoForm.alvo_tipo === "pack" ? solicitacaoForm.alvo_id : null,
       titulo: solicitacaoForm.finalidade === "cadastro" ? `[CADASTRO] ${solicitacaoForm.titulo.trim()}` : solicitacaoForm.titulo.trim(),
-      quantidade: solicitacaoForm.quantidade,
-      unidade: solicitacaoForm.unidade,
-      observacao: solicitacaoForm.observacao.trim() || null,
+      quantidade: isPurchaseWorkflow ? requestItems.reduce((total, item) => total + item.quantidade, 0) : solicitacaoForm.quantidade,
+      unidade: isPurchaseWorkflow ? "itens" : solicitacaoForm.unidade,
+      observacao: workflow ? serializeWorkflow(workflow) : solicitacaoForm.observacao.trim() || null,
     });
     if (error) {
       toast({ title: "Erro ao criar solicitação", description: error.message, variant: "destructive" });
@@ -555,6 +662,72 @@ export default function Estoque() {
     }
     toast({ title: "Status atualizado" });
     fetchAll();
+  };
+
+  const addRequestItem = () => {
+    const item = itens.find((candidate) => candidate.id === requestNewItemId);
+    if (!item) return;
+    if (requestItems.some((candidate) => candidate.item_id === item.id)) {
+      toast({ title: "Este item já está na solicitação", variant: "destructive" });
+      return;
+    }
+    setRequestItems((current) => [...current, {
+      item_id: item.id,
+      nome: item.nome,
+      quantidade: requestNewItemQtd,
+      unidade: item.unidade,
+      valor_unitario: item.custo_unitario,
+    }]);
+    setRequestNewItemId("");
+    setRequestNewItemQtd(1);
+  };
+
+  const openManageWorkflow = (solicitacao: Solicitacao) => {
+    if (!solicitacao.workflow) return;
+    setManagingSolicitacao(solicitacao);
+    setManageWorkflow(structuredClone(solicitacao.workflow));
+    setManageArtFile(null);
+  };
+
+  const saveManagedWorkflow = async (nextStage?: WorkflowStage) => {
+    if (!managingSolicitacao || !manageWorkflow) return;
+    let arteUrl = manageWorkflow.arte_url;
+    if (manageArtFile) {
+      arteUrl = await uploadRequestArt(manageArtFile);
+      if (!arteUrl) return;
+    }
+    const etapa = nextStage || manageWorkflow.etapa;
+    const updated: SolicitacaoWorkflow = {
+      ...manageWorkflow,
+      etapa,
+      arte_url: arteUrl,
+      etapas_em: { ...manageWorkflow.etapas_em, [etapa]: manageWorkflow.etapas_em[etapa] || new Date().toISOString() },
+    };
+    const status: Solicitacao["status"] = etapa === "concluida" ? "atendida" : etapa === "aprovacao" || etapa === "arte" || etapa === "producao" ? "aprovada" : "pendente";
+    const { error } = await supabase.from("estoque_solicitacoes").update({
+      observacao: serializeWorkflow(updated),
+      status,
+      quantidade: updated.itens.reduce((total, item) => total + item.quantidade, 0),
+      unidade: "itens",
+    }).eq("id", managingSolicitacao.id);
+    if (error) {
+      toast({ title: "Erro ao atualizar a jornada", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: etapa === "concluida" ? "Solicitação concluída" : "Jornada atualizada", description: etapa === "concluida" ? "Nenhuma movimentação de estoque foi feita automaticamente." : undefined });
+    setManagingSolicitacao(null);
+    setManageWorkflow(null);
+    fetchAll();
+  };
+
+  const getWorkflowTotal = (workflow: SolicitacaoWorkflow) => workflow.itens.reduce((total, item) => total + item.quantidade * item.valor_unitario, 0) + workflow.frete;
+  const getDaysOpen = (createdAt: string, completedAt?: string) => Math.max(0, Math.floor((new Date(completedAt || Date.now()).getTime() - new Date(createdAt).getTime()) / 86400000));
+  const getNextStage = (workflow: SolicitacaoWorkflow): WorkflowStage | null => {
+    const route: WorkflowStage[] = workflow.origem === "interna"
+      ? ["solicitacao", "arte", "producao", "concluida"]
+      : ["solicitacao", "cotacao", "aprovacao", "arte", "producao", "concluida"];
+    const index = route.indexOf(workflow.etapa);
+    return index >= 0 && index < route.length - 1 ? route[index + 1] : null;
   };
 
   const movItem = itens.find(i => i.id === movItemId);
@@ -1022,6 +1195,9 @@ export default function Estoque() {
           </div>
           <div className="space-y-2">
             {filteredSolicitacoes.map((solicitacao) => {
+              const workflow = solicitacao.workflow;
+              const completedAt = workflow?.etapas_em.concluida;
+              const daysOpen = getDaysOpen(solicitacao.created_at, completedAt);
               const statusStyle = solicitacao.status === "atendida"
                 ? "bg-primary/10 text-primary"
                 : solicitacao.status === "cancelada"
@@ -1039,16 +1215,32 @@ export default function Estoque() {
                       <div className="flex flex-wrap items-center gap-2">
                         <h3 className="font-display text-sm font-bold text-foreground">{solicitacao.titulo}</h3>
                         <Badge className={cn("border-0 text-[9px] capitalize", statusStyle)} variant="secondary">{solicitacao.status}</Badge>
-                        <Badge variant="outline" className="text-[9px] capitalize">{solicitacao.finalidade}</Badge>
+                        <Badge variant="outline" className="text-[9px] capitalize">{workflow ? (workflow.origem === "interna" ? "Produção interna" : "Compra externa") : solicitacao.finalidade}</Badge>
+                        {workflow && <Badge className="border-0 bg-primary/10 text-[9px] text-primary" variant="secondary">{WORKFLOW_STAGES.find((stage) => stage.value === workflow.etapa)?.label}</Badge>}
                       </div>
                        <p className="mt-1 text-[10px] text-muted-foreground">
-                         {solicitacao.finalidade === "cadastro"
+                         {workflow
+                           ? `${workflow.itens.length} ${workflow.itens.length === 1 ? "item" : "itens"} · ${daysOpen} ${daysOpen === 1 ? "dia" : "dias"} ${workflow.etapa === "concluida" ? "até a conclusão" : "em aberto"} · Total estimado R$ ${getWorkflowTotal(workflow).toFixed(2)}`
+                           : solicitacao.finalidade === "cadastro"
                            ? `Cadastro sem movimentação de estoque · ${new Date(solicitacao.created_at).toLocaleDateString("pt-BR")}`
                            : `${getSolicitacaoTarget(solicitacao)} · ${solicitacao.quantidade} ${solicitacao.unidade}(s) · ${new Date(solicitacao.created_at).toLocaleDateString("pt-BR")}`}
                        </p>
+                       {workflow && (
+                         <div className="mt-2 flex flex-wrap gap-1">
+                           {workflow.itens.slice(0, 4).map((item) => <Badge key={item.item_id} variant="outline" className="text-[9px]">{item.nome} ×{item.quantidade}</Badge>)}
+                           {workflow.itens.length > 4 && <Badge variant="secondary" className="text-[9px]">+{workflow.itens.length - 4}</Badge>}
+                           <Badge variant="outline" className="gap-1 text-[9px]"><Palette className="h-2.5 w-2.5" /> {workflow.arte === "mesma" ? "Mesma arte" : workflow.arte === "nova" ? "Nova arte anexada" : "Criar nova arte"}</Badge>
+                         </div>
+                       )}
                       {solicitacao.observacao && <p className="mt-1 line-clamp-2 text-[10px] text-muted-foreground">{solicitacao.observacao}</p>}
                     </div>
                     <div className="flex shrink-0 gap-1.5">
+                      {workflow && solicitacao.status !== "cancelada" ? (
+                        <Button size="sm" className="h-8 text-[10px]" onClick={() => openManageWorkflow(solicitacao)}>
+                          <ClipboardList className="mr-1 h-3 w-3" /> Gerenciar
+                        </Button>
+                      ) : (
+                        <>
                       {solicitacao.status === "pendente" && (
                         <Button size="sm" variant="outline" className="h-8 text-[10px]" onClick={() => updateSolicitacaoStatus(solicitacao.id, "aprovada")}>
                           <Check className="mr-1 h-3 w-3" /> Aprovar
@@ -1063,6 +1255,8 @@ export default function Estoque() {
                         <Button size="sm" variant="ghost" className="h-8 px-2 text-[10px] text-destructive" onClick={() => updateSolicitacaoStatus(solicitacao.id, "cancelada")}>
                           Cancelar
                         </Button>
+                      )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -1387,6 +1581,118 @@ export default function Estoque() {
         </SheetContent>
       </Sheet>
 
+      {/* Sheet: Gerenciar jornada da solicitação */}
+      <Sheet open={!!managingSolicitacao} onOpenChange={(open) => {
+        if (!open) {
+          setManagingSolicitacao(null);
+          setManageWorkflow(null);
+          setManageArtFile(null);
+        }
+      }}>
+        <SheetContent side="bottom" className="max-h-[94vh] overflow-y-auto rounded-t-xl bg-background">
+          {managingSolicitacao && manageWorkflow && (() => {
+            const nextStage = getNextStage(manageWorkflow);
+            const currentStageIndex = WORKFLOW_STAGES.findIndex((stage) => stage.value === manageWorkflow.etapa);
+            const total = getWorkflowTotal(manageWorkflow);
+            const daysOpen = getDaysOpen(managingSolicitacao.created_at, manageWorkflow.etapas_em.concluida);
+            return (
+              <>
+                <SheetHeader className="mx-auto w-full max-w-4xl">
+                  <div className="flex flex-wrap items-start justify-between gap-3 pr-7">
+                    <div>
+                      <SheetTitle className="font-display text-lg">{managingSolicitacao.titulo}</SheetTitle>
+                      <p className="mt-1 text-xs text-muted-foreground">Acompanhe cotação, aprovação, arte e produção em um só lugar.</p>
+                    </div>
+                    <Badge variant="outline" className="gap-1.5 py-1.5 text-[10px]"><CalendarDays className="h-3 w-3" /> {daysOpen} {daysOpen === 1 ? "dia" : "dias"} {manageWorkflow.etapa === "concluida" ? "até a conclusão" : "em aberto"}</Badge>
+                  </div>
+                </SheetHeader>
+
+                <div className="mx-auto w-full max-w-4xl space-y-4 py-4">
+                  <div className="overflow-x-auto rounded-xl border border-border bg-card p-3">
+                    <div className="flex min-w-[620px] items-start">
+                      {WORKFLOW_STAGES.map((stage, index) => {
+                        const skippedInternalQuote = manageWorkflow.origem === "interna" && (stage.value === "cotacao" || stage.value === "aprovacao");
+                        const reached = !skippedInternalQuote && (index <= currentStageIndex || Boolean(manageWorkflow.etapas_em[stage.value]));
+                        return (
+                          <div key={stage.value} className={cn("relative flex flex-1 flex-col items-center text-center", skippedInternalQuote && "opacity-35")}>
+                            {index > 0 && <span className={cn("absolute right-1/2 top-3 h-0.5 w-full", reached ? "bg-primary" : "bg-border")} />}
+                            <span className={cn("relative z-10 flex h-6 w-6 items-center justify-center rounded-full border text-[9px] font-bold", reached ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-muted-foreground")}>
+                              {reached ? <Check className="h-3 w-3" /> : index + 1}
+                            </span>
+                            <span className="mt-1.5 text-[9px] font-medium">{stage.label}</span>
+                            {skippedInternalQuote && <span className="text-[8px] text-muted-foreground">não se aplica</span>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
+                    <div className="space-y-4">
+                      <section className="rounded-xl border border-border bg-card p-3 sm:p-4">
+                        <div className="mb-3 flex items-center justify-between gap-2">
+                          <div><p className="text-xs font-semibold">Itens e cotação</p><p className="text-[10px] text-muted-foreground">Ajuste as quantidades e os valores unitários recebidos.</p></div>
+                          <Badge variant="secondary" className="text-[9px]">{manageWorkflow.itens.length} {manageWorkflow.itens.length === 1 ? "item" : "itens"}</Badge>
+                        </div>
+                        <div className="space-y-2">
+                          {manageWorkflow.itens.map((item) => (
+                            <div key={item.item_id} className="grid items-center gap-2 rounded-lg bg-muted/45 p-2 sm:grid-cols-[1fr_100px_135px]">
+                              <div className="min-w-0"><p className="truncate text-xs font-medium">{item.nome}</p><p className="text-[9px] text-muted-foreground">{item.unidade}(s)</p></div>
+                              <div><Label className="sr-only">Quantidade de {item.nome}</Label><Input type="number" min={1} value={item.quantidade} onChange={(event) => setManageWorkflow((workflow) => workflow ? { ...workflow, itens: workflow.itens.map((candidate) => candidate.item_id === item.item_id ? { ...candidate, quantidade: Math.max(1, Number(event.target.value)) } : candidate) } : workflow)} /></div>
+                              {manageWorkflow.origem === "externa" ? (
+                                <div className="relative"><DollarSign className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" /><Label className="sr-only">Valor unitário de {item.nome}</Label><Input type="number" min={0} step={0.01} className="pl-7" value={item.valor_unitario} onChange={(event) => setManageWorkflow((workflow) => workflow ? { ...workflow, itens: workflow.itens.map((candidate) => candidate.item_id === item.item_id ? { ...candidate, valor_unitario: Math.max(0, Number(event.target.value)) } : candidate) } : workflow)} /></div>
+                              ) : <span className="text-[10px] text-muted-foreground">Produção interna</span>}
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+
+                      <section className="rounded-xl border border-border bg-card p-3 sm:p-4">
+                        <div className="mb-3 flex items-center gap-2"><Palette className="h-4 w-4 text-primary" /><div><p className="text-xs font-semibold">Arte e arquivos</p><p className="text-[10px] text-muted-foreground">Confirme a arte existente ou acompanhe a criação de uma nova.</p></div></div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-1.5"><Label className="text-xs">Decisão sobre a arte</Label><Select value={manageWorkflow.arte} onValueChange={(value: "mesma" | "nova" | "desenvolver") => setManageWorkflow((workflow) => workflow ? { ...workflow, arte: value } : workflow)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="mesma">Usar a mesma arte</SelectItem><SelectItem value="nova">Enviar nova arte pronta</SelectItem><SelectItem value="desenvolver">Desenvolver nova arte</SelectItem></SelectContent></Select></div>
+                          <div className="space-y-1.5"><Label className="text-xs">Arquivo da arte</Label><label className="flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 text-xs text-muted-foreground hover:bg-muted/50"><FileUp className="h-3.5 w-3.5" /><span className="truncate">{manageArtFile ? manageArtFile.name : manageWorkflow.arte_url ? "Substituir arquivo" : "Anexar arquivo"}</span><input type="file" className="hidden" onChange={(event) => setManageArtFile(event.target.files?.[0] || null)} /></label></div>
+                        </div>
+                        {manageWorkflow.arte_url && <a href={manageWorkflow.arte_url} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-1 text-[10px] font-medium text-primary hover:underline"><ExternalLink className="h-3 w-3" /> Abrir arte anexada</a>}
+                      </section>
+
+                      <div className="space-y-1.5"><Label className="text-xs">Observações e próximos passos</Label><Textarea rows={3} value={manageWorkflow.observacao} onChange={(event) => setManageWorkflow((workflow) => workflow ? { ...workflow, observacao: event.target.value } : workflow)} placeholder="Registre prazos, retorno do fornecedor, ajustes de arte ou orientações de produção." /></div>
+                    </div>
+
+                    <aside className="space-y-4">
+                      <section className="rounded-xl border border-border bg-card p-3 sm:p-4">
+                        <p className="mb-3 text-xs font-semibold">Forma de produção</p>
+                        <Select value={manageWorkflow.origem} onValueChange={(value: "externa" | "interna") => setManageWorkflow((workflow) => workflow ? { ...workflow, origem: value } : workflow)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="externa">Fornecedor externo</SelectItem><SelectItem value="interna">Produção interna</SelectItem></SelectContent></Select>
+                        {manageWorkflow.origem === "externa" && (
+                          <div className="mt-3 space-y-3">
+                            <div className="space-y-1.5"><Label className="text-xs">Fornecedor</Label><div className="relative"><Building2 className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" value={manageWorkflow.fornecedor} onChange={(event) => setManageWorkflow((workflow) => workflow ? { ...workflow, fornecedor: event.target.value } : workflow)} placeholder="Nome do fornecedor" /></div></div>
+                            <div className="space-y-1.5"><Label className="text-xs">Frete</Label><div className="relative"><Truck className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" type="number" min={0} step={0.01} value={manageWorkflow.frete} onChange={(event) => setManageWorkflow((workflow) => workflow ? { ...workflow, frete: Math.max(0, Number(event.target.value)) } : workflow)} /></div></div>
+                          </div>
+                        )}
+                      </section>
+
+                      <section className="rounded-xl bg-primary/5 p-4">
+                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Total estimado</p>
+                        <p className="mt-1 text-2xl font-bold text-primary">R$ {total.toFixed(2)}</p>
+                        <p className="mt-2 text-[9px] leading-relaxed text-muted-foreground">Valores servem para acompanhamento e aprovação. A conclusão desta jornada não altera o saldo do estoque.</p>
+                      </section>
+                    </aside>
+                  </div>
+                </div>
+
+                <SheetFooter className="mx-auto w-full max-w-4xl gap-2 sm:justify-between">
+                  <Button variant="ghost" className="text-destructive" onClick={async () => { await updateSolicitacaoStatus(managingSolicitacao.id, "cancelada"); setManagingSolicitacao(null); setManageWorkflow(null); }}>Cancelar solicitação</Button>
+                  <div className="flex flex-1 gap-2 sm:flex-none">
+                    <Button variant="outline" className="flex-1 sm:flex-none" onClick={() => saveManagedWorkflow()}>Salvar alterações</Button>
+                    {nextStage && <Button className="flex-1 sm:flex-none" onClick={() => saveManagedWorkflow(nextStage)}>{nextStage === "concluida" ? <CircleCheckBig className="mr-1.5 h-3.5 w-3.5" /> : <ArrowUp className="mr-1.5 h-3.5 w-3.5" />}{nextStage === "concluida" ? "Concluir solicitação" : `Avançar para ${WORKFLOW_STAGES.find((stage) => stage.value === nextStage)?.label}`}</Button>}
+                  </div>
+                </SheetFooter>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
+
       {/* Sheet: Nova Solicitação */}
       <Sheet open={showNewSolicitacao} onOpenChange={setShowNewSolicitacao}>
         <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-xl bg-background">
@@ -1400,8 +1706,9 @@ export default function Estoque() {
                <Select value={solicitacaoForm.finalidade} onValueChange={(value: "cadastro" | "reposicao" | "consumo") => setSolicitacaoForm((form) => ({
                  ...form,
                  finalidade: value,
-                 alvo_tipo: value === "cadastro" ? "livre" : form.alvo_tipo === "livre" ? "item" : form.alvo_tipo,
-                 alvo_id: value === "cadastro" ? "" : form.alvo_id,
+                 alvo_tipo: value === "cadastro" || value === "reposicao" ? "livre" : form.alvo_tipo === "livre" ? "item" : form.alvo_tipo,
+                 alvo_id: value === "cadastro" || value === "reposicao" ? "" : form.alvo_id,
+                 titulo: value === "reposicao" && !form.titulo ? "Solicitação de brindes" : form.titulo,
                }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -1411,9 +1718,9 @@ export default function Estoque() {
                 </SelectContent>
               </Select>
             </div>
-             <div className={cn("space-y-1.5", solicitacaoForm.finalidade === "cadastro" && "opacity-60")}>
+             <div className={cn("space-y-1.5", (solicitacaoForm.finalidade === "cadastro" || solicitacaoForm.finalidade === "reposicao") && "opacity-60")}>
               <Label className="text-xs">Tipo</Label>
-               <Select disabled={solicitacaoForm.finalidade === "cadastro"} value={solicitacaoForm.alvo_tipo} onValueChange={(value: "item" | "pack" | "livre") => setSolicitacaoForm((form) => ({ ...form, alvo_tipo: value, alvo_id: "", unidade: value === "pack" ? "pack" : "unidade" }))}>
+               <Select disabled={solicitacaoForm.finalidade === "cadastro" || solicitacaoForm.finalidade === "reposicao"} value={solicitacaoForm.alvo_tipo} onValueChange={(value: "item" | "pack" | "livre") => setSolicitacaoForm((form) => ({ ...form, alvo_tipo: value, alvo_id: "", unidade: value === "pack" ? "pack" : "unidade" }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="item">Item do estoque</SelectItem>
@@ -1426,6 +1733,70 @@ export default function Estoque() {
                <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-primary sm:col-span-2">
                  <p className="font-semibold">Esta solicitação não movimenta o estoque.</p>
                  <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Descreva o produto, brinde, papelaria ou saco plástico que precisa ser cadastrado. Ao concluir, a equipe apenas confirma o cadastro; a entrada física será registrada separadamente.</p>
+               </div>
+             )}
+             {solicitacaoForm.finalidade === "reposicao" && (
+               <div className="space-y-4 rounded-xl border border-border bg-card p-3 sm:col-span-2 sm:p-4">
+                 <div className="flex items-start gap-3">
+                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><ShoppingCart className="h-4 w-4" /></div>
+                   <div><p className="text-xs font-semibold">Jornada de solicitação de brindes</p><p className="mt-0.5 text-[10px] text-muted-foreground">Adicione vários itens, defina quantidades, cotação, frete e a decisão sobre a arte.</p></div>
+                 </div>
+
+                 <div className="grid gap-3 sm:grid-cols-2">
+                   <div className="space-y-1.5">
+                     <Label className="text-xs">Como será produzido?</Label>
+                     <Select value={requestOrigin} onValueChange={(value: "externa" | "interna") => setRequestOrigin(value)}>
+                       <SelectTrigger><SelectValue /></SelectTrigger>
+                       <SelectContent><SelectItem value="externa">Compra / fornecedor externo</SelectItem><SelectItem value="interna">Produção ou impressão interna</SelectItem></SelectContent>
+                     </Select>
+                   </div>
+                   <div className="space-y-1.5">
+                     <Label className="text-xs">Decisão sobre a arte</Label>
+                     <Select value={requestArt} onValueChange={(value: "mesma" | "nova" | "desenvolver") => setRequestArt(value)}>
+                       <SelectTrigger><SelectValue /></SelectTrigger>
+                       <SelectContent><SelectItem value="mesma">Usar a mesma arte</SelectItem><SelectItem value="nova">Enviar nova arte pronta</SelectItem><SelectItem value="desenvolver">Solicitar desenvolvimento de nova arte</SelectItem></SelectContent>
+                     </Select>
+                   </div>
+                 </div>
+
+                 {requestArt === "nova" && (
+                   <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 py-3 text-xs text-muted-foreground hover:bg-muted/50">
+                     <FileUp className="h-3.5 w-3.5" /> {requestArtFile ? requestArtFile.name : "Anexar nova arte (PDF, imagem, ZIP...)"}
+                     <input type="file" className="hidden" onChange={(event) => setRequestArtFile(event.target.files?.[0] || null)} />
+                   </label>
+                 )}
+
+                 <div className="space-y-2">
+                   <Label className="text-xs">Itens solicitados *</Label>
+                   <div className="grid gap-2 sm:grid-cols-[1fr_110px_auto]">
+                     <Popover open={requestItemPickerOpen} onOpenChange={setRequestItemPickerOpen}>
+                       <PopoverTrigger asChild><Button type="button" variant="outline" role="combobox" className="justify-start text-xs font-normal"><Search className="mr-2 h-3.5 w-3.5" /><span className="truncate">{requestNewItemId ? getItemName(requestNewItemId) : "Pesquisar item..."}</span></Button></PopoverTrigger>
+                       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start"><Command><CommandInput placeholder="Buscar brinde ou material..." /><CommandList><CommandEmpty>Nenhum item encontrado.</CommandEmpty><CommandGroup>{itens.map((item) => <CommandItem key={item.id} value={`${item.nome} ${item.categoria}`} onSelect={() => { setRequestNewItemId(item.id); setRequestItemPickerOpen(false); }}><span className="flex-1 truncate text-xs">{item.nome}</span><span className="text-[10px] text-muted-foreground">saldo {item.saldo_atual}</span></CommandItem>)}</CommandGroup></CommandList></Command></PopoverContent>
+                     </Popover>
+                     <Input type="number" min={1} value={requestNewItemQtd} onChange={(event) => setRequestNewItemQtd(Math.max(1, Number(event.target.value)))} aria-label="Quantidade do novo item" />
+                     <Button type="button" onClick={addRequestItem} disabled={!requestNewItemId}><Plus className="mr-1 h-3.5 w-3.5" /> Adicionar</Button>
+                   </div>
+                   {requestItems.length > 0 ? (
+                     <div className="space-y-1.5">
+                       {requestItems.map((item) => (
+                         <div key={item.item_id} className="grid items-center gap-2 rounded-lg bg-muted/45 p-2 sm:grid-cols-[1fr_100px_130px_auto]">
+                           <div className="min-w-0"><p className="truncate text-xs font-medium">{item.nome}</p><p className="text-[9px] text-muted-foreground">{item.unidade}(s)</p></div>
+                           <Input type="number" min={1} value={item.quantidade} onChange={(event) => setRequestItems((current) => current.map((candidate) => candidate.item_id === item.item_id ? { ...candidate, quantidade: Math.max(1, Number(event.target.value)) } : candidate))} aria-label={`Quantidade de ${item.nome}`} />
+                           {requestOrigin === "externa" ? <div className="relative"><DollarSign className="absolute left-2.5 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" /><Input type="number" min={0} step={0.01} className="pl-7" value={item.valor_unitario} onChange={(event) => setRequestItems((current) => current.map((candidate) => candidate.item_id === item.item_id ? { ...candidate, valor_unitario: Math.max(0, Number(event.target.value)) } : candidate))} aria-label={`Valor unitário de ${item.nome}`} /></div> : <span className="text-[10px] text-muted-foreground">Produção interna</span>}
+                           <Button type="button" size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setRequestItems((current) => current.filter((candidate) => candidate.item_id !== item.item_id))}><X className="h-3.5 w-3.5" /></Button>
+                         </div>
+                       ))}
+                     </div>
+                   ) : <p className="rounded-lg border border-dashed border-border py-3 text-center text-[10px] text-muted-foreground">Adicione um ou mais brindes à solicitação.</p>}
+                 </div>
+
+                 {requestOrigin === "externa" && (
+                   <div className="grid gap-3 sm:grid-cols-2">
+                     <div className="space-y-1.5"><Label className="text-xs">Fornecedor / cotação</Label><div className="relative"><Building2 className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" placeholder="Nome do fornecedor" value={requestSupplier} onChange={(event) => setRequestSupplier(event.target.value)} /></div></div>
+                     <div className="space-y-1.5"><Label className="text-xs">Frete estimado</Label><div className="relative"><Truck className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" /><Input className="pl-9" type="number" min={0} step={0.01} value={requestShipping} onChange={(event) => setRequestShipping(Math.max(0, Number(event.target.value)))} /></div></div>
+                   </div>
+                 )}
+                 {requestItems.length > 0 && <div className="flex items-center justify-between rounded-lg bg-primary/5 px-3 py-2 text-xs"><span className="text-muted-foreground">Total estimado</span><strong className="text-primary">R$ {(requestItems.reduce((total, item) => total + item.quantidade * item.valor_unitario, 0) + requestShipping).toFixed(2)}</strong></div>}
                </div>
              )}
             {solicitacaoForm.alvo_tipo !== "livre" && (
@@ -1446,7 +1817,7 @@ export default function Estoque() {
                <Label className="text-xs">O que está sendo solicitado *</Label>
                <Input placeholder={solicitacaoForm.finalidade === "cadastro" ? "Ex: Cadastrar novo brinde para o Pack Ovelha" : "Ex: Imprimir novos folders do projeto"} value={solicitacaoForm.titulo} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, titulo: event.target.value }))} />
             </div>
-             {solicitacaoForm.finalidade !== "cadastro" && (
+             {solicitacaoForm.finalidade !== "cadastro" && solicitacaoForm.finalidade !== "reposicao" && (
                <>
                  <div className="space-y-1.5">
                    <Label className="text-xs">Quantidade</Label>
@@ -1460,7 +1831,7 @@ export default function Estoque() {
              )}
             <div className="space-y-1.5 sm:col-span-2">
                <Label className="text-xs">Detalhes</Label>
-               <Input placeholder={solicitacaoForm.finalidade === "cadastro" ? "Categoria, características, finalidade e pack relacionado" : "Prazo, destino, justificativa ou fornecedor"} value={solicitacaoForm.observacao} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, observacao: event.target.value }))} />
+               <Textarea rows={2} placeholder={solicitacaoForm.finalidade === "cadastro" ? "Categoria, características, finalidade e pack relacionado" : solicitacaoForm.finalidade === "reposicao" ? "Prazo desejado, finalidade, padrão de personalização ou outras orientações" : "Prazo, destino, justificativa ou fornecedor"} value={solicitacaoForm.observacao} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, observacao: event.target.value }))} />
             </div>
           </div>
           <SheetFooter className="gap-2">

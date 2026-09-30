@@ -3,9 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
   Gift, Plus, Package, CheckCircle, AlertCircle, Layers, Trash2, X,
-  Pencil, ChevronDown, ChevronUp, AlertTriangle, Check as CheckIcon
+  Pencil, AlertTriangle, Check as CheckIcon, Eye, MoreHorizontal, Upload, ImageIcon
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
 } from "@/components/ui/sheet";
@@ -17,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 
 interface EstoqueItem {
@@ -24,6 +24,7 @@ interface EstoqueItem {
   nome: string;
   custo_unitario: number;
   saldo_atual: number;
+  imagem_url: string | null;
 }
 
 interface PackWithItens {
@@ -58,6 +59,20 @@ interface Kit {
   usados: number;
 }
 
+const KIT_IMAGE_MARKER = /^\[\[KIT_IMAGE:(.*?)\]\]\n?/;
+
+function getKitImageFromDescription(description: string | null) {
+  return description?.match(KIT_IMAGE_MARKER)?.[1] || null;
+}
+
+function getCleanKitDescription(description: string | null) {
+  return (description || "").replace(KIT_IMAGE_MARKER, "");
+}
+
+function withKitImage(description: string, imageUrl: string | null) {
+  return imageUrl ? `[[KIT_IMAGE:${imageUrl}]]\n${description}` : description;
+}
+
 interface ItemFalta {
   nome: string;
   necessario: number;
@@ -80,6 +95,7 @@ export default function Kits() {
   const [addItemKitId, setAddItemKitId] = useState<string | null>(null);
 
   const [newKit, setNewKit] = useState({ nome: "", tipo: "", descricao: "" });
+  const [newKitImage, setNewKitImage] = useState<File | null>(null);
   const [newKitItens, setNewKitItens] = useState<{ item_id: string; quantidade: number; item_type: string }[]>([]);
   const [newItemId, setNewItemId] = useState("");
   const [newItemQtd, setNewItemQtd] = useState(1);
@@ -91,6 +107,7 @@ export default function Kits() {
 
   const [loteQtd, setLoteQtd] = useState(10);
   const [editForm, setEditForm] = useState({ nome: "", tipo: "", descricao: "" });
+  const [editKitImage, setEditKitImage] = useState<File | null>(null);
   const [expandedKitId, setExpandedKitId] = useState<string | null>(null);
 
   useEffect(() => { fetchAll(); }, []);
@@ -99,7 +116,7 @@ export default function Kits() {
     const [kitsRes, kitItensRes, estoqueRes, packsRes, packItensRes] = await Promise.all([
       supabase.from("kits").select("*").order("nome"),
       supabase.from("kit_itens").select("*"),
-      supabase.from("estoque_itens").select("id, nome, custo_unitario, saldo_atual").order("nome"),
+      supabase.from("estoque_itens").select("id, nome, custo_unitario, saldo_atual, imagem_url").order("nome"),
       supabase.from("packs").select("*").order("nome"),
       supabase.from("pack_itens").select("*"),
     ]);
@@ -139,6 +156,35 @@ export default function Kits() {
   const getItemName = (id: string) => getSelectableItem(id)?.nome || estoqueItens.find(e => e.id === id)?.nome || "—";
   const getItemCusto = (id: string) => getSelectableItem(id)?.custo_unitario || 0;
   const getKitItens = (kitId: string) => kitItens.filter(ki => ki.kit_id === kitId);
+
+  const getKitCover = (kit: Kit) => {
+    const customCover = getKitImageFromDescription(kit.descricao);
+    if (customCover) return { url: customCover, label: "Imagem personalizada" };
+    for (const component of getKitItens(kit.id)) {
+      if (component.item_type === "pack") {
+        const pack = packs.find((candidate) => candidate.id === component.item_id);
+        const coverItem = pack?.itens
+          .map((packItem) => estoqueItens.find((item) => item.id === packItem.item_id))
+          .find((item) => item?.imagem_url);
+        if (coverItem?.imagem_url) return { url: coverItem.imagem_url, label: coverItem.nome };
+      } else {
+        const item = estoqueItens.find((candidate) => candidate.id === component.item_id);
+        if (item?.imagem_url) return { url: item.imagem_url, label: item.nome };
+      }
+    }
+    return null;
+  };
+
+  const uploadKitImage = async (file: File) => {
+    const extension = file.name.split(".").pop() || "jpg";
+    const path = `kits/${crypto.randomUUID()}.${extension}`;
+    const { error } = await supabase.storage.from("item-images").upload(path, file);
+    if (error) {
+      toast({ title: "Erro ao enviar imagem", description: error.message, variant: "destructive" });
+      return null;
+    }
+    return supabase.storage.from("item-images").getPublicUrl(path).data.publicUrl;
+  };
 
   const calcCusto = (items: { item_id: string; quantidade: number }[]) =>
     items.reduce((sum, ki) => sum + getItemCusto(ki.item_id) * ki.quantidade, 0);
@@ -187,8 +233,10 @@ export default function Kits() {
     if (newKitItens.length === 0) {
       toast({ title: "Adicione pelo menos um item", variant: "destructive" }); return;
     }
+    const customImage = newKitImage ? await uploadKitImage(newKitImage) : null;
+    if (newKitImage && !customImage) return;
     const { data, error } = await supabase.from("kits").insert({
-      nome: newKit.nome, tipo: newKit.tipo, descricao: newKit.descricao || null,
+      nome: newKit.nome, tipo: newKit.tipo, descricao: withKitImage(newKit.descricao, customImage) || null,
     }).select().single();
     if (error || !data) {
       toast({ title: "Erro ao criar kit", description: error?.message, variant: "destructive" }); return;
@@ -198,6 +246,7 @@ export default function Kits() {
     }));
     await supabase.from("kit_itens").insert(inserts);
     setNewKit({ nome: "", tipo: "", descricao: "" });
+    setNewKitImage(null);
     setNewKitItens([]);
     setShowNewKit(false);
     toast({ title: "Kit criado!", description: `"${data.nome}" adicionado.` });
@@ -265,16 +314,20 @@ export default function Kits() {
   };
 
   const openEditKit = (kit: Kit) => {
-    setEditForm({ nome: kit.nome, tipo: kit.tipo, descricao: kit.descricao || "" });
+    setEditForm({ nome: kit.nome, tipo: kit.tipo, descricao: getCleanKitDescription(kit.descricao) });
+    setEditKitImage(null);
     setEditingKit(kit);
   };
 
   const handleSaveEdit = async () => {
     if (!editingKit) return;
+    const currentImage = getKitImageFromDescription(editingKit.descricao);
+    const uploadedImage = editKitImage ? await uploadKitImage(editKitImage) : currentImage;
+    if (editKitImage && !uploadedImage) return;
     await supabase.from("kits").update({
       nome: editForm.nome || editingKit.nome,
       tipo: editForm.tipo || editingKit.tipo,
-      descricao: editForm.descricao,
+      descricao: withKitImage(editForm.descricao, uploadedImage),
     }).eq("id", editingKit.id);
     setEditingKit(null);
     toast({ title: "Kit atualizado!" });
@@ -332,60 +385,49 @@ export default function Kits() {
         ))}
       </div>
 
-      {/* Kit cards */}
-      <div className="space-y-3">
+      {/* Marketplace de kits */}
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
         {kits.map((kit) => {
           const items = getKitItens(kit.id);
           const custoEstimado = calcCusto(items);
           const availability = getKitAvailability(kit.id);
           const isExpanded = expandedKitId === kit.id;
+          const cover = getKitCover(kit);
 
           return (
-            <Card key={kit.id} className={cn("entity-card overflow-hidden", availability.canBuild ? "border-status-visited/40" : "border-border")}>
-              <button
-                className="w-full p-4 flex items-center gap-3 text-left"
-                onClick={() => setExpandedKitId(isExpanded ? null : kit.id)}
-              >
-                <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 kpi-icon",
-                  availability.canBuild ? "bg-status-visited/10" : "bg-destructive/10")}>
-                  {availability.canBuild ? (
-                    <CheckIcon className="w-5 h-5 text-status-visited" />
-                  ) : (
-                    <AlertTriangle className="w-5 h-5 text-destructive" />
-                  )}
+            <article key={kit.id} className={cn("group flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg", availability.canBuild ? "border-status-visited/40" : "border-border")}>
+              <button type="button" onClick={() => setExpandedKitId(isExpanded ? null : kit.id)} className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset">
+                {cover ? (
+                  <img src={cover.url} alt={`Imagem de ${kit.nome}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center text-primary/35"><Gift className="h-14 w-14" strokeWidth={1.25} /><span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em]">Kit sem imagem</span></div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/5" />
+                <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
+                  <Badge className="border-white/25 bg-white/90 px-2 text-[9px] font-bold text-foreground shadow-sm hover:bg-white">{kit.tipo}</Badge>
+                  <Badge className={cn("border-0 px-2 text-[9px] font-bold shadow-sm", availability.canBuild ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground")}>{availability.canBuild ? `Monta ${availability.maxBuildable}x` : `${availability.faltas.length} faltando`}</Badge>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-display font-semibold text-sm text-foreground truncate">{kit.nome}</p>
-                  <p className="text-[11px] text-muted-foreground truncate">{kit.tipo}</p>
-                </div>
-                <div className="text-right flex-shrink-0 mr-2">
-                  <p className="font-display font-bold text-sm text-foreground">R$ {custoEstimado.toFixed(2)}</p>
-                  <p className="text-[9px] text-muted-foreground">custo/kit</p>
-                </div>
-                {isExpanded ? <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                {cover && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-3 pb-3 pt-10 text-[9px] text-white/85">Imagem vinculada: <span className="font-semibold text-white">{cover.label}</span></div>}
               </button>
 
-              <div className="px-4 pb-3 flex gap-2 flex-wrap">
-                {availability.canBuild ? (
-                  <Badge className="text-[10px] gap-1 bg-status-visited/10 text-status-visited border-status-visited/20">
-                    <CheckCircle className="w-2.5 h-2.5" /> Pode montar ({availability.maxBuildable}x)
-                  </Badge>
-                ) : (
-                  <Badge variant="destructive" className="text-[10px] gap-1">
-                    <AlertCircle className="w-2.5 h-2.5" /> {availability.faltas.length} item(ns) faltando
-                  </Badge>
-                )}
-                <Badge variant="secondary" className="text-[10px] gap-1">
-                  <Package className="w-2.5 h-2.5" /> {kit.montados} montados
-                </Badge>
-                <Badge variant="secondary" className="text-[10px] gap-1">
-                  <CheckCircle className="w-2.5 h-2.5" /> {kit.disponiveis} disp.
-                </Badge>
-              </div>
+              <div className="flex flex-1 flex-col p-3">
+                <h3 className="line-clamp-2 min-h-9 font-display text-sm font-bold leading-[1.15] text-foreground">{kit.nome}</h3>
+                <p className="mt-1 line-clamp-2 min-h-7 text-[10px] leading-snug text-muted-foreground">{getCleanKitDescription(kit.descricao) || "Modelo pronto para organizar e montar materiais."}</p>
 
-              {isExpanded && (
-                <CardContent className="px-4 pb-4 pt-0 space-y-3 border-t border-border/40">
-                  <p className="text-xs text-muted-foreground pt-3">{kit.descricao}</p>
+                <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg bg-muted/50 p-2">
+                  <div><p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">Custo</p><p className="mt-0.5 text-xs font-bold">R$ {custoEstimado.toFixed(2)}</p></div>
+                  <div><p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">Disponíveis</p><p className="mt-0.5 text-xs font-bold text-primary">{kit.disponiveis}</p></div>
+                  <div className="text-right"><p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">Montados</p><p className="mt-0.5 text-xs font-bold">{kit.montados}</p></div>
+                </div>
+                <p className="mt-1.5 text-[9px] text-muted-foreground">{items.length} {items.length === 1 ? "componente" : "componentes"} no modelo</p>
+
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {items.slice(0, 3).map((component) => <Badge key={component.id} variant="outline" className="max-w-full bg-primary/5 px-1.5 text-[9px] font-medium"><span className="truncate">{getItemName(component.item_id)}</span>&nbsp;×{component.quantidade}</Badge>)}
+                  {items.length > 3 && <Badge variant="secondary" className="px-1.5 text-[9px]">+{items.length - 3}</Badge>}
+                </div>
+
+                {isExpanded && (
+                  <div className="mt-3 space-y-3 border-t border-border/60 pt-3">
 
                   {/* Availability alerts */}
                   {availability.faltas.length > 0 && (
@@ -436,27 +478,24 @@ export default function Kits() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2 pt-1">
-                    <Button size="sm" className="text-xs"
-                      onClick={() => { setSelectedKitId(kit.id); setShowMontarLote(true); }}>
-                      <Layers className="w-3 h-3 mr-1" /> Montar Lote
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-xs"
-                      onClick={() => { setAddItemKitId(kit.id); setAddItemId(""); setShowAddItem(true); }}>
-                      <Plus className="w-3 h-3 mr-1" /> Add Item
-                    </Button>
-                    <Button variant="outline" size="sm" className="text-xs" onClick={() => openEditKit(kit)}>
-                      <Pencil className="w-3 h-3 mr-1" /> Editar
-                    </Button>
-                    <Button variant="outline" size="sm"
-                      className="text-xs text-destructive border-destructive/30 hover:bg-destructive/10 hover:text-destructive"
-                      onClick={() => handleDeleteKit(kit.id)}>
-                      <Trash2 className="w-3 h-3 mr-1" /> Excluir
-                    </Button>
                   </div>
-                </CardContent>
-              )}
-            </Card>
+                )}
+
+                <div className="mt-auto grid grid-cols-[1fr_1fr_auto] gap-1.5 border-t border-border/70 pt-3">
+                  <Button size="sm" className="h-8 px-2 text-[10px]" onClick={() => { setSelectedKitId(kit.id); setShowMontarLote(true); }}><Layers className="mr-1 h-3 w-3" /> Montar</Button>
+                  <Button variant="outline" size="sm" className="h-8 px-2 text-[10px]" onClick={() => setExpandedKitId(isExpanded ? null : kit.id)}><Eye className="mr-1 h-3 w-3" /> {isExpanded ? "Recolher" : "Ver kit"}</Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild><Button type="button" size="icon" variant="ghost" className="h-8 w-8" aria-label={`Mais ações para ${kit.nome}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-44">
+                      <DropdownMenuItem onSelect={() => { setAddItemKitId(kit.id); setAddItemId(""); setShowAddItem(true); }} className="text-xs"><Plus className="mr-2 h-3.5 w-3.5" /> Adicionar item</DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => openEditKit(kit)} className="text-xs"><Pencil className="mr-2 h-3.5 w-3.5" /> Editar e trocar imagem</DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => handleDeleteKit(kit.id)} className="text-xs text-destructive focus:text-destructive"><Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir kit</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
+            </article>
           );
         })}
 
@@ -487,6 +526,14 @@ export default function Kits() {
             <div className="space-y-2">
               <Label className="text-xs">Descrição</Label>
               <Textarea placeholder="Descreva o objetivo deste kit..." value={newKit.descricao} onChange={e => setNewKit(p => ({ ...p, descricao: e.target.value }))} rows={2} />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs">Imagem do kit (opcional)</Label>
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 py-3 text-xs text-muted-foreground transition-colors hover:bg-muted/50">
+                <Upload className="h-3.5 w-3.5" /> {newKitImage ? newKitImage.name : "Adicionar imagem própria"}
+                <input type="file" accept="image/*" className="hidden" onChange={(event) => setNewKitImage(event.target.files?.[0] || null)} />
+              </label>
+              <p className="text-[10px] text-muted-foreground">Sem uma imagem própria, o catálogo usa automaticamente a imagem do primeiro item vinculado.</p>
             </div>
 
             <div className="surface-panel rounded-lg p-3 space-y-3">
@@ -644,12 +691,26 @@ export default function Kits() {
 
       {/* Sheet: Editar Kit */}
       <Sheet open={!!editingKit} onOpenChange={(open) => !open && setEditingKit(null)}>
-        <SheetContent side="bottom" className="rounded-t-lg bg-background">
+        <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-lg bg-background">
           <SheetHeader><SheetTitle className="font-display text-lg">Editar Kit</SheetTitle></SheetHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2"><Label className="text-xs">Nome</Label><Input value={editForm.nome} onChange={e => setEditForm(p => ({ ...p, nome: e.target.value }))} /></div>
             <div className="space-y-2"><Label className="text-xs">Tipo / Público</Label><Input value={editForm.tipo} onChange={e => setEditForm(p => ({ ...p, tipo: e.target.value }))} /></div>
             <div className="space-y-2"><Label className="text-xs">Descrição</Label><Textarea value={editForm.descricao} onChange={e => setEditForm(p => ({ ...p, descricao: e.target.value }))} rows={2} /></div>
+            <div className="space-y-2">
+              <Label className="text-xs">Imagem do catálogo</Label>
+              {editingKit && getKitCover(editingKit) && (
+                <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-2">
+                  <img src={editKitImage ? URL.createObjectURL(editKitImage) : getKitCover(editingKit)!.url} alt="Prévia do kit" className="h-14 w-20 rounded-md object-cover" />
+                  <div className="min-w-0"><p className="text-xs font-medium">Imagem atual</p><p className="truncate text-[10px] text-muted-foreground">{editKitImage?.name || getKitCover(editingKit)!.label}</p></div>
+                </div>
+              )}
+              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 py-3 text-xs text-muted-foreground transition-colors hover:bg-muted/50">
+                <ImageIcon className="h-3.5 w-3.5" /> {editKitImage ? "Trocar arquivo selecionado" : "Adicionar ou trocar imagem"}
+                <input type="file" accept="image/*" className="hidden" onChange={(event) => setEditKitImage(event.target.files?.[0] || null)} />
+              </label>
+              <p className="text-[10px] text-muted-foreground">Se nenhuma imagem própria for enviada, a imagem do primeiro item continua sendo usada como referência.</p>
+            </div>
           </div>
           <SheetFooter className="gap-2">
             <Button variant="outline" onClick={() => setEditingKit(null)} className="flex-1">Cancelar</Button>
