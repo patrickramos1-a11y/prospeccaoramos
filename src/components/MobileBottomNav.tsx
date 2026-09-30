@@ -21,7 +21,7 @@ export function MobileBottomNav({ onOpenMenu, hasEstoqueAlert }: MobileBottomNav
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-40 lg:hidden glass border-t border-border/75 safe-bottom shadow-lg"
+      className="fixed bottom-0 inset-x-0 z-40 border-t border-border bg-card/95 safe-bottom backdrop-blur-sm lg:hidden"
       style={{ height: "calc(var(--bottom-nav-h) + var(--safe-bottom))" }}
       aria-label="Navegação principal"
     >
@@ -36,7 +36,7 @@ export function MobileBottomNav({ onOpenMenu, hasEstoqueAlert }: MobileBottomNav
               end={item.end}
               className={cn(
                 "relative flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold transition-colors rounded-lg",
-                isActive ? "text-primary bg-primary/7" : "text-muted-foreground hover:text-foreground hover:bg-secondary/70"
+                isActive ? "text-primary bg-primary/5" : "text-muted-foreground hover:text-foreground hover:bg-secondary/70"
               )}
             >
               {isActive && (

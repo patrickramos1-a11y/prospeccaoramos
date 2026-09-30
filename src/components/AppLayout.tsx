@@ -1,7 +1,7 @@
 import { Outlet, NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, MapPin, CalendarCheck, Landmark, Package, Gift,
-  BarChart3, DollarSign, Settings, Leaf, ChevronLeft, ChevronRight,
+  BarChart3, DollarSign, Settings, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { MobileBottomNav } from "./MobileBottomNav";
+import logoHorizontal from "@/assets/logo-horizontal.png";
+import logoMark from "@/assets/logo-mark.png";
 
 type NavItem = {
   to: string;
@@ -122,16 +124,13 @@ export default function AppLayout() {
           "relative flex items-center gap-3 rounded-lg text-sm font-medium transition-all duration-150 group",
           mini ? "justify-center px-2 py-2.5" : "px-3 py-2.5",
           isActive
-            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md ring-1 ring-sidebar-primary/35"
-            : "sidebar-nav-item-muted hover:shadow-sm"
+            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
+            : "sidebar-nav-item-muted hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
         )
       }
     >
       {({ isActive }) => (
         <>
-          {isActive && !mini && (
-            <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-sidebar-primary-foreground" />
-          )}
           <item.icon className="w-[18px] h-[18px] flex-shrink-0 opacity-100" />
           {!mini && (
             <>
@@ -139,7 +138,7 @@ export default function AppLayout() {
               {item.badge && (
                 <span className={cn(
                   "text-[10px] font-semibold px-1.5 py-0.5 rounded-full",
-                  isActive ? "bg-sidebar-primary-foreground/25 text-sidebar-primary-foreground" : "bg-sidebar-accent text-sidebar-accent-foreground ring-1 ring-sidebar-border"
+                  isActive ? "bg-white/20 text-white" : "bg-primary text-primary-foreground"
                 )}>
                   {item.badge}
                 </span>
@@ -162,25 +161,21 @@ export default function AppLayout() {
       {/* Sidebar desktop */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col bg-sidebar border-r border-sidebar-border/70 shadow-lg",
+          "hidden lg:flex flex-col bg-sidebar border-r border-sidebar-border",
           "transition-[width] duration-300 ease-out flex-shrink-0",
           collapsed ? "w-[68px]" : "w-64"
         )}
       >
         {/* Logo */}
         <div className={cn(
-          "flex items-center gap-3 border-b border-sidebar-border/70 bg-sidebar-accent/55",
-          collapsed ? "justify-center px-2 py-4" : "px-5 py-5"
+          "flex h-[88px] items-center border-b border-sidebar-border bg-card",
+          collapsed ? "justify-center px-2" : "px-5"
         )}>
-          <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center flex-shrink-0 shadow-md ring-1 ring-sidebar-primary/30">
-            <Leaf className="w-5 h-5 text-sidebar-primary-foreground" />
-          </div>
-          {!collapsed && (
-            <div className="min-w-0 flex-1">
-              <p className="font-display font-bold text-sidebar-foreground text-base leading-tight">Ramos</p>
-              <p className="text-[11px] text-sidebar-foreground leading-tight">Prospecção Ambiental</p>
-            </div>
-          )}
+          <img
+            src={collapsed ? logoMark : logoHorizontal}
+            alt="Ramos Engenharia"
+            className={cn("object-contain", collapsed ? "h-9 w-9" : "h-12 w-auto max-w-[178px]")}
+          />
         </div>
 
         {/* Nav agrupada */}
@@ -208,21 +203,21 @@ export default function AppLayout() {
             onClick={() => setCollapsed((c) => !c)}
             aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
             className={cn(
-              "w-full flex items-center gap-2 px-3 py-2.5 text-xs text-sidebar-foreground hover:bg-sidebar-accent transition-colors",
+              "w-full flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors",
               collapsed && "justify-center"
             )}
           >
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
             {!collapsed && <span>Recolher</span>}
           </button>
-          <div className={cn("flex items-center gap-3 px-4 py-3 bg-sidebar-accent/50", collapsed && "justify-center px-2")}>
-            <div className="w-8 h-8 rounded-lg bg-sidebar-accent flex items-center justify-center flex-shrink-0 ring-1 ring-sidebar-border/80">
-              <span className="text-xs font-bold text-sidebar-accent-foreground">GE</span>
+          <div className={cn("flex items-center gap-3 border-t border-sidebar-border bg-card px-4 py-3", collapsed && "justify-center px-2")}>
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <span className="text-xs font-bold text-primary">GE</span>
             </div>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-sidebar-foreground truncate">Gestor</p>
-                <p className="text-[10px] text-sidebar-foreground truncate">ramos@consultoria.com</p>
+                <p className="text-xs font-semibold text-foreground truncate">Gestor</p>
+                <p className="text-[10px] text-muted-foreground truncate">ramos@consultoria.com</p>
               </div>
             )}
           </div>
@@ -231,16 +226,10 @@ export default function AppLayout() {
 
       {/* Mobile "Mais" sheet */}
       <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-        <SheetContent side="left" className="w-[290px] p-0 bg-sidebar border-sidebar-border/40">
-          <SheetHeader className="px-5 py-4 border-b border-sidebar-border/60">
-            <SheetTitle className="flex items-center gap-3 text-left">
-              <div className="w-9 h-9 rounded-lg bg-sidebar-primary flex items-center justify-center shadow-md">
-                <Leaf className="w-5 h-5 text-sidebar-primary-foreground" />
-              </div>
-              <div>
-                <p className="font-display font-bold text-sidebar-foreground text-base leading-tight">Ramos</p>
-                <p className="text-[11px] text-sidebar-foreground font-normal leading-tight">Prospecção Ambiental</p>
-              </div>
+        <SheetContent side="left" className="w-[290px] p-0 bg-sidebar border-sidebar-border">
+          <SheetHeader className="px-5 py-4 border-b border-sidebar-border bg-card">
+            <SheetTitle className="flex items-center text-left">
+              <img src={logoHorizontal} alt="Ramos Engenharia" className="h-11 w-auto max-w-[180px] object-contain" />
             </SheetTitle>
           </SheetHeader>
           <nav className="py-3 px-2 overflow-y-auto h-[calc(100dvh-80px)]">
@@ -261,9 +250,9 @@ export default function AppLayout() {
       {/* Main */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Topbar */}
-        <header className="sticky top-0 z-30 flex items-center gap-3 px-4 lg:px-6 h-12 border-b border-border/80 glass flex-shrink-0">
+        <header className="sticky top-0 z-30 flex h-14 flex-shrink-0 items-center gap-3 border-b border-border bg-card/90 px-4 backdrop-blur-sm lg:px-6">
           <div className="flex items-center gap-2 text-sm min-w-0">
-            <span className="hidden sm:inline text-muted-foreground font-medium">Ramos</span>
+            <span className="hidden sm:inline text-muted-foreground font-medium">Ramos Engenharia</span>
             <ChevronRight className="hidden sm:block w-3.5 h-3.5 text-muted-foreground/60" />
             <span className="text-foreground font-semibold font-display truncate">{currentTitle}</span>
           </div>

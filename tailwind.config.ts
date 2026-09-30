@@ -13,7 +13,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ["Inter", "system-ui", "sans-serif"],
-        display: ["Syne", "sans-serif"],
+        display: ["Outfit", "Inter", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -60,8 +60,8 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
         brand: {
-          green: "hsl(155 45% 22%)",
-          "green-light": "hsl(155 50% 42%)",
+          green: "hsl(146 88% 44%)",
+          "green-light": "hsl(146 78% 38%)",
           amber: "hsl(38 85% 52%)",
           earth: "hsl(38 25% 92%)",
           dark: "hsl(160 30% 8%)",
