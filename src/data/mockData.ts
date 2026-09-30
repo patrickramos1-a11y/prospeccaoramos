@@ -39,11 +39,11 @@ export const CONTATOS = [
 ];
 
 export const ESTOQUE_ITENS = [
-  { id: 1, nome: "Cartão de Visita Ramos", categoria: "Impresso", unidade: "unidade", saldoAtual: 340, minimo: 100, ideal: 500, custoUnitario: 0.35, fornecedor: "Gráfica Central", alerta: false },
+  { id: 1, nome: "Cartão de Visita Ramos", categoria: "Papelaria", unidade: "unidade", saldoAtual: 340, minimo: 100, ideal: 500, custoUnitario: 0.35, fornecedor: "Gráfica Central", alerta: false },
   { id: 2, nome: "Caneta Personalizada", categoria: "Brinde", unidade: "unidade", saldoAtual: 45, minimo: 50, ideal: 200, custoUnitario: 2.10, fornecedor: "Brindes SP", alerta: true },
   { id: 3, nome: "Régua 30cm", categoria: "Brinde", unidade: "unidade", saldoAtual: 80, minimo: 40, ideal: 150, custoUnitario: 1.80, fornecedor: "Brindes SP", alerta: false },
-  { id: 4, nome: "Mini Folder", categoria: "Impresso", unidade: "unidade", saldoAtual: 120, minimo: 80, ideal: 300, custoUnitario: 0.60, fornecedor: "Gráfica Central", alerta: false },
-  { id: 5, nome: "Folder Institucional A4", categoria: "Impresso", unidade: "unidade", saldoAtual: 25, minimo: 50, ideal: 200, custoUnitario: 1.20, fornecedor: "Gráfica Central", alerta: true },
+  { id: 4, nome: "Mini Folder", categoria: "Papelaria", unidade: "unidade", saldoAtual: 120, minimo: 80, ideal: 300, custoUnitario: 0.60, fornecedor: "Gráfica Central", alerta: false },
+  { id: 5, nome: "Folder Institucional A4", categoria: "Papelaria", unidade: "unidade", saldoAtual: 25, minimo: 50, ideal: 200, custoUnitario: 1.20, fornecedor: "Gráfica Central", alerta: true },
   { id: 6, nome: "Imã Geladeira", categoria: "Brinde", unidade: "unidade", saldoAtual: 180, minimo: 60, ideal: 250, custoUnitario: 0.90, fornecedor: "Brindes SP", alerta: false },
   { id: 7, nome: "Chiclete Trident", categoria: "Brinde", unidade: "pacote", saldoAtual: 95, minimo: 50, ideal: 200, custoUnitario: 0.80, fornecedor: "Distribuidor Local", alerta: false },
   { id: 8, nome: "Saquinho Zip", categoria: "Embalagem", unidade: "unidade", saldoAtual: 200, minimo: 100, ideal: 400, custoUnitario: 0.25, fornecedor: "Embalagens Pará", alerta: false },

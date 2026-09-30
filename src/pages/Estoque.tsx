@@ -46,7 +46,7 @@ interface Pack {
   itens: PackItem[];
 }
 
-const CATEGORIAS = ["Impresso", "Brinde", "Embalagem", "Papelaria"];
+const CATEGORIAS = ["Brinde", "Embalagem", "Papelaria"];
 
 export default function Estoque() {
   const [itens, setItens] = useState<EstoqueItem[]>([]);
