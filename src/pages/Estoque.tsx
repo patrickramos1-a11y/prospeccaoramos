@@ -163,6 +163,8 @@ export default function Estoque() {
   const [managingSolicitacao, setManagingSolicitacao] = useState<Solicitacao | null>(null);
   const [manageWorkflow, setManageWorkflow] = useState<SolicitacaoWorkflow | null>(null);
   const [manageArtFile, setManageArtFile] = useState<File | null>(null);
+  const [editingSolicitacao, setEditingSolicitacao] = useState<Solicitacao | null>(null);
+  const [editSolicitacaoForm, setEditSolicitacaoForm] = useState({ titulo: "", observacao: "", comentario: "" });
 
   // New item form
   const [newItem, setNewItem] = useState({
@@ -661,6 +663,42 @@ export default function Estoque() {
       return;
     }
     toast({ title: "Status atualizado" });
+    fetchAll();
+  };
+
+  const openEditSolicitacao = (solicitacao: Solicitacao) => {
+    setEditingSolicitacao(solicitacao);
+    setEditSolicitacaoForm({
+      titulo: solicitacao.titulo,
+      observacao: solicitacao.observacao || "",
+      comentario: "",
+    });
+  };
+
+  const handleSaveSolicitacao = async () => {
+    if (!editingSolicitacao || !editSolicitacaoForm.titulo.trim()) return;
+    const comentario = editSolicitacaoForm.comentario.trim();
+    const timestamp = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date());
+    const observacao = [
+      editSolicitacaoForm.observacao.trim(),
+      comentario ? `[Comentário · ${timestamp}]\n${comentario}` : "",
+    ].filter(Boolean).join("\n\n");
+    const workflow = editingSolicitacao.workflow
+      ? { ...editingSolicitacao.workflow, observacao }
+      : null;
+    const storedTitle = editingSolicitacao.finalidade === "cadastro"
+      ? `[CADASTRO] ${editSolicitacaoForm.titulo.trim()}`
+      : editSolicitacaoForm.titulo.trim();
+    const { error } = await supabase.from("estoque_solicitacoes").update({
+      titulo: storedTitle,
+      observacao: workflow ? serializeWorkflow(workflow) : observacao || null,
+    }).eq("id", editingSolicitacao.id);
+    if (error) {
+      toast({ title: "Erro ao editar solicitação", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Solicitação atualizada", description: comentario ? "O novo comentário foi acrescentado ao histórico." : undefined });
+    setEditingSolicitacao(null);
     fetchAll();
   };
 
@@ -1235,6 +1273,9 @@ export default function Estoque() {
                       {solicitacao.observacao && <p className="mt-1 line-clamp-2 text-[10px] text-muted-foreground">{solicitacao.observacao}</p>}
                     </div>
                     <div className="flex shrink-0 gap-1.5">
+                      <Button size="sm" variant="outline" className="h-8 text-[10px]" onClick={() => openEditSolicitacao(solicitacao)}>
+                        <Pencil className="mr-1 h-3 w-3" /> Editar
+                      </Button>
                       {workflow && solicitacao.status !== "cancelada" ? (
                         <Button size="sm" className="h-8 text-[10px]" onClick={() => openManageWorkflow(solicitacao)}>
                           <ClipboardList className="mr-1 h-3 w-3" /> Gerenciar
@@ -1577,6 +1618,39 @@ export default function Estoque() {
               {packMovType === "entrada" ? <Wrench className="mr-1.5 h-3.5 w-3.5" /> : <ArrowUp className="mr-1.5 h-3.5 w-3.5" />}
               {packMovType === "entrada" ? `Montar ${packMovQtd}` : `Retirar ${packMovQtd}`}
             </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet: Editar solicitação e acrescentar contexto */}
+      <Sheet open={!!editingSolicitacao} onOpenChange={(open) => !open && setEditingSolicitacao(null)}>
+        <SheetContent side="bottom" className="max-h-[88vh] overflow-y-auto rounded-t-xl bg-background">
+          <SheetHeader className="mx-auto w-full max-w-2xl">
+            <SheetTitle className="font-display text-lg">Editar solicitação</SheetTitle>
+            <p className="text-xs text-muted-foreground">Atualize as informações ou acrescente um comentário ao histórico sem perder o contexto anterior.</p>
+          </SheetHeader>
+          <div className="mx-auto w-full max-w-2xl space-y-4 py-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Título da solicitação *</Label>
+              <Input value={editSolicitacaoForm.titulo} onChange={(event) => setEditSolicitacaoForm((form) => ({ ...form, titulo: event.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Contexto e detalhes atuais</Label>
+              <Textarea rows={5} value={editSolicitacaoForm.observacao} onChange={(event) => setEditSolicitacaoForm((form) => ({ ...form, observacao: event.target.value }))} placeholder="Descreva a necessidade, modelos, medidas, prazo ou outras informações importantes." />
+            </div>
+            <div className="rounded-xl border border-primary/20 bg-primary/5 p-3">
+              <div className="mb-2 flex items-center gap-2"><ClipboardList className="h-4 w-4 text-primary" /><div><p className="text-xs font-semibold">Acrescentar comentário</p><p className="text-[10px] text-muted-foreground">O comentário será registrado com data e hora abaixo do contexto existente.</p></div></div>
+              <Textarea rows={3} value={editSolicitacaoForm.comentario} onChange={(event) => setEditSolicitacaoForm((form) => ({ ...form, comentario: event.target.value }))} placeholder="Ex: Confirmamos os três tamanhos de caixa e precisamos incluir as medidas de cada modelo." />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+              <Badge variant="outline" className="capitalize">{editingSolicitacao?.finalidade}</Badge>
+              <Badge variant="outline" className="capitalize">{editingSolicitacao?.status}</Badge>
+              {editingSolicitacao && <span>Criada em {new Date(editingSolicitacao.created_at).toLocaleDateString("pt-BR")}</span>}
+            </div>
+          </div>
+          <SheetFooter className="mx-auto w-full max-w-2xl gap-2">
+            <Button variant="outline" onClick={() => setEditingSolicitacao(null)} className="flex-1">Cancelar</Button>
+            <Button onClick={handleSaveSolicitacao} disabled={!editSolicitacaoForm.titulo.trim()} className="flex-1"><Check className="mr-1.5 h-3.5 w-3.5" /> Salvar alterações</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
