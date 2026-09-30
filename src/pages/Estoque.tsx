@@ -21,6 +21,8 @@ import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "@/hooks/use-toast";
 
 interface EstoqueItem {
@@ -54,7 +56,7 @@ interface Pack {
 
 interface Solicitacao {
   id: string;
-  finalidade: "reposicao" | "consumo";
+  finalidade: "cadastro" | "reposicao" | "consumo";
   alvo_tipo: "item" | "pack" | "livre";
   item_id: string | null;
   pack_id: string | null;
@@ -76,7 +78,7 @@ interface PackMovimentacao {
   created_at: string;
 }
 
-const CATEGORIAS = ["Brinde", "Embalagem", "Papelaria"];
+const CATEGORIAS = ["Brinde", "Papelaria", "Sacos plásticos", "Embalagem"];
 
 export default function Estoque() {
   const [itens, setItens] = useState<EstoqueItem[]>([]);
@@ -125,9 +127,11 @@ export default function Estoque() {
   const [packItensForm, setPackItensForm] = useState<{ item_id: string; quantidade: number }[]>([]);
   const [packNewItemId, setPackNewItemId] = useState("");
   const [packNewItemQtd, setPackNewItemQtd] = useState(1);
+  const [packItemPickerOpen, setPackItemPickerOpen] = useState(false);
+  const [packBagChoice, setPackBagChoice] = useState("sem_saco");
   const [solicitacaoForm, setSolicitacaoForm] = useState({
-    finalidade: "reposicao" as "reposicao" | "consumo",
-    alvo_tipo: "item" as "item" | "pack" | "livre",
+    finalidade: "cadastro" as "cadastro" | "reposicao" | "consumo",
+    alvo_tipo: "livre" as "item" | "pack" | "livre",
     alvo_id: "",
     titulo: "",
     quantidade: 1,
@@ -163,13 +167,20 @@ export default function Estoque() {
       itens: packItensList.filter(pi => pi.pack_id === p.id),
     }));
     setPacks(packsWithItens);
-    if (solicitacoesRes.data) setSolicitacoes(solicitacoesRes.data);
+    if (solicitacoesRes.data) setSolicitacoes(solicitacoesRes.data.map((solicitacao) => {
+      const isCadastroRequest = solicitacao.alvo_tipo === "livre" && solicitacao.titulo.startsWith("[CADASTRO] ");
+      return {
+        ...solicitacao,
+        finalidade: isCadastroRequest ? "cadastro" : solicitacao.finalidade,
+        titulo: isCadastroRequest ? solicitacao.titulo.replace(/^\[CADASTRO\]\s*/, "") : solicitacao.titulo,
+      } as Solicitacao;
+    }));
     if (packMovimentacoesRes.data) setPackMovimentacoes(packMovimentacoesRes.data);
     setLoading(false);
   };
 
   const isRecent = (createdAt: string) => Date.now() - new Date(createdAt).getTime() <= 7 * 24 * 60 * 60 * 1000;
-  const categorias = Array.from(new Set(itens.map((i) => i.categoria))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const categorias = Array.from(new Set([...CATEGORIAS, ...itens.map((i) => i.categoria)])).sort((a, b) => a.localeCompare(b, "pt-BR"));
   const categoryCounts = itens.reduce<Record<string, number>>((counts, item) => {
     counts[item.categoria] = (counts[item.categoria] || 0) + 1;
     return counts;
@@ -257,6 +268,11 @@ export default function Estoque() {
     const item = itens.find((candidate) => candidate.id === packItem.item_id);
     return total + (item?.custo_unitario || 0) * packItem.quantidade;
   }, 0);
+
+  const isBagItem = (item?: EstoqueItem) => item?.categoria === "Sacos plásticos";
+  const getPackBag = (pack: Pack) => pack.itens
+    .map((packItem) => itens.find((item) => item.id === packItem.item_id))
+    .find(isBagItem);
 
   // Image upload helper
   const uploadImage = async (file: File): Promise<string | null> => {
@@ -378,11 +394,29 @@ export default function Estoque() {
   };
 
   // Pack CRUD
+  const getPackCompositionForSave = () => {
+    if (packItensForm.length === 0) {
+      toast({ title: "Adicione pelo menos um item principal ao pack", variant: "destructive" });
+      return null;
+    }
+    if (!packBagChoice) {
+      toast({ title: "Informe o saco do pack ou marque “Sem saco”", variant: "destructive" });
+      return null;
+    }
+    const composition = packItensForm.filter((component) => !isBagItem(itens.find((item) => item.id === component.item_id)));
+    if (packBagChoice !== "sem_saco") {
+      composition.push({ item_id: packBagChoice, quantidade: 1 });
+    }
+    return composition;
+  };
+
   const handleCreatePack = async () => {
-    if (!packForm.nome.trim() || packItensForm.length === 0) {
-      toast({ title: "Preencha o nome e adicione pelo menos um item", variant: "destructive" });
+    if (!packForm.nome.trim()) {
+      toast({ title: "Informe o nome do pack", variant: "destructive" });
       return;
     }
+    const composition = getPackCompositionForSave();
+    if (!composition) return;
     const { data, error } = await supabase.from("packs").insert({
       nome: packForm.nome, descricao: packForm.descricao || null,
     }).select().single();
@@ -390,10 +424,11 @@ export default function Estoque() {
       toast({ title: "Erro ao criar pack", description: error?.message, variant: "destructive" });
       return;
     }
-    const inserts = packItensForm.map(pi => ({ pack_id: data.id, item_id: pi.item_id, quantidade: pi.quantidade }));
+    const inserts = composition.map(pi => ({ pack_id: data.id, item_id: pi.item_id, quantidade: pi.quantidade }));
     await supabase.from("pack_itens").insert(inserts);
     setPackForm({ nome: "", descricao: "" });
     setPackItensForm([]);
+    setPackBagChoice("sem_saco");
     setShowNewPack(false);
     toast({ title: "Pack criado!" });
     fetchAll();
@@ -401,13 +436,15 @@ export default function Estoque() {
 
   const handleSavePack = async () => {
     if (!editingPack) return;
+    const composition = getPackCompositionForSave();
+    if (!composition) return;
     await supabase.from("packs").update({
       nome: packForm.nome, descricao: packForm.descricao || null,
     }).eq("id", editingPack.id);
     // Replace pack items
     await supabase.from("pack_itens").delete().eq("pack_id", editingPack.id);
-    if (packItensForm.length > 0) {
-      const inserts = packItensForm.map(pi => ({ pack_id: editingPack.id, item_id: pi.item_id, quantidade: pi.quantidade }));
+    if (composition.length > 0) {
+      const inserts = composition.map(pi => ({ pack_id: editingPack.id, item_id: pi.item_id, quantidade: pi.quantidade }));
       await supabase.from("pack_itens").insert(inserts);
     }
     setEditingPack(null);
@@ -423,7 +460,11 @@ export default function Estoque() {
 
   const openEditPack = (pack: Pack) => {
     setPackForm({ nome: pack.nome, descricao: pack.descricao || "" });
-    setPackItensForm(pack.itens.map(pi => ({ item_id: pi.item_id, quantidade: pi.quantidade })));
+    const bag = getPackBag(pack);
+    setPackBagChoice(bag?.id || "sem_saco");
+    setPackItensForm(pack.itens
+      .filter((component) => component.item_id !== bag?.id)
+      .map(pi => ({ item_id: pi.item_id, quantidade: pi.quantidade })));
     setEditingPack(pack);
   };
 
@@ -465,12 +506,13 @@ export default function Estoque() {
     fetchAll();
   };
 
-  const openSolicitacao = (target?: EstoqueItem | Pack, targetType?: "item" | "pack", finalidade: "reposicao" | "consumo" = "reposicao") => {
+  const openSolicitacao = (target?: EstoqueItem | Pack, targetType?: "item" | "pack", finalidade: "cadastro" | "reposicao" | "consumo" = "cadastro") => {
+    const isCadastro = finalidade === "cadastro";
     setSolicitacaoForm({
       finalidade,
-      alvo_tipo: targetType || "item",
-      alvo_id: target?.id || "",
-      titulo: target ? `${finalidade === "reposicao" ? "Repor" : "Consumir"} ${target.nome}` : "",
+      alvo_tipo: isCadastro ? "livre" : targetType || "item",
+      alvo_id: isCadastro ? "" : target?.id || "",
+      titulo: target ? `${finalidade === "reposicao" ? "Repor" : finalidade === "consumo" ? "Consumir" : "Cadastrar"} ${target.nome}` : "",
       quantidade: 1,
       unidade: targetType === "pack" ? "pack" : target && "unidade" in target ? target.unidade : "unidade",
       observacao: "",
@@ -484,11 +526,11 @@ export default function Estoque() {
       return;
     }
     const { error } = await supabase.from("estoque_solicitacoes").insert({
-      finalidade: solicitacaoForm.finalidade,
+      finalidade: solicitacaoForm.finalidade === "cadastro" ? "reposicao" : solicitacaoForm.finalidade,
       alvo_tipo: solicitacaoForm.alvo_tipo,
       item_id: solicitacaoForm.alvo_tipo === "item" ? solicitacaoForm.alvo_id : null,
       pack_id: solicitacaoForm.alvo_tipo === "pack" ? solicitacaoForm.alvo_id : null,
-      titulo: solicitacaoForm.titulo.trim(),
+      titulo: solicitacaoForm.finalidade === "cadastro" ? `[CADASTRO] ${solicitacaoForm.titulo.trim()}` : solicitacaoForm.titulo.trim(),
       quantidade: solicitacaoForm.quantidade,
       unidade: solicitacaoForm.unidade,
       observacao: solicitacaoForm.observacao.trim() || null,
@@ -498,7 +540,10 @@ export default function Estoque() {
       return;
     }
     setShowNewSolicitacao(false);
-    toast({ title: "Solicitação registrada" });
+    toast({
+      title: solicitacaoForm.finalidade === "cadastro" ? "Solicitação de cadastro registrada" : "Solicitação registrada",
+      description: solicitacaoForm.finalidade === "cadastro" ? "Ela poderá ser concluída sem alterar o estoque." : undefined,
+    });
     fetchAll();
   };
 
@@ -546,16 +591,39 @@ export default function Estoque() {
 
   const PackItemsEditor = () => (
     <div className="surface-panel rounded-lg p-3 space-y-3">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Itens do Pack</p>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-foreground">Composição do pack</p>
+        <p className="mt-0.5 text-[10px] text-muted-foreground">Escolha os materiais, suas quantidades e o saco usado na montagem.</p>
+      </div>
       <div className="space-y-2">
-        <Select value={packNewItemId} onValueChange={setPackNewItemId}>
-          <SelectTrigger className="text-xs"><SelectValue placeholder="Selecione um item" /></SelectTrigger>
-          <SelectContent>
-            {itens.map(i => (
-              <SelectItem key={i.id} value={i.id} className="text-xs">{i.nome}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Label className="text-[10px] text-muted-foreground">Brinde ou item principal *</Label>
+        <Popover open={packItemPickerOpen} onOpenChange={setPackItemPickerOpen}>
+          <PopoverTrigger asChild>
+            <Button type="button" variant="outline" role="combobox" aria-expanded={packItemPickerOpen} className="h-10 w-full justify-start px-3 text-xs font-normal">
+              <Search className="mr-2 h-3.5 w-3.5 text-muted-foreground" />
+              <span className="truncate">{packNewItemId ? getItemName(packNewItemId) : "Pesquisar e selecionar um item..."}</span>
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+            <Command>
+              <CommandInput placeholder="Buscar por nome ou categoria..." />
+              <CommandList className="max-h-64">
+                <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
+                <CommandGroup heading="Itens disponíveis">
+                  {itens.filter((item) => !isBagItem(item)).map((item) => (
+                    <CommandItem key={item.id} value={`${item.nome} ${item.categoria}`} onSelect={() => { setPackNewItemId(item.id); setPackItemPickerOpen(false); }}>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-medium">{item.nome}</p>
+                        <p className="text-[10px] text-muted-foreground">{item.categoria} · saldo {item.saldo_atual}</p>
+                      </div>
+                      {packNewItemId === item.id && <Check className="h-3.5 w-3.5 text-primary" />}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
         <div className="flex gap-2">
           <div className="flex-1">
             <Label className="text-[10px] text-muted-foreground">Quantidade</Label>
@@ -582,8 +650,21 @@ export default function Estoque() {
           ))}
         </div>
       ) : (
-        <p className="text-xs text-muted-foreground italic text-center py-3">Nenhum item adicionado</p>
+        <p className="rounded-lg border border-dashed border-border py-3 text-center text-xs italic text-muted-foreground">Nenhum item principal adicionado</p>
       )}
+      <div className="space-y-1.5 border-t border-border/70 pt-3">
+        <Label className="text-[10px] text-muted-foreground">Saco para montagem *</Label>
+        <Select value={packBagChoice} onValueChange={setPackBagChoice}>
+          <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="sem_saco" className="text-xs">Sem saco</SelectItem>
+            {itens.filter(isBagItem).map((item) => (
+              <SelectItem key={item.id} value={item.id} className="text-xs">{item.nome} · saldo {item.saldo_atual}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-[10px] text-muted-foreground">O saco entra automaticamente na composição e no cálculo do estoque. Se o pack não usar embalagem, escolha “Sem saco”.</p>
+      </div>
     </div>
   );
 
@@ -591,7 +672,7 @@ export default function Estoque() {
     <div className="page-shell space-y-4 animate-fade-in pb-24">
       <div className="page-hero rounded-lg p-4 sm:p-5">
         <h1 className="font-display text-xl font-bold">Estoque de Materiais</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Brindes, papelaria, embalagens e packs</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Brindes, papelaria, sacos plásticos e packs</p>
       </div>
 
       {/* Tabs */}
@@ -619,7 +700,7 @@ export default function Estoque() {
             </Button>
           </>
         ) : activeTab === "packs" ? (
-          <Button size="sm" className="flex-1 text-xs" onClick={() => { setPackForm({ nome: "", descricao: "" }); setPackItensForm([]); setPackNewItemId(""); setShowNewPack(true); }}>
+          <Button size="sm" className="flex-1 text-xs" onClick={() => { setPackForm({ nome: "", descricao: "" }); setPackItensForm([]); setPackNewItemId(""); setPackBagChoice("sem_saco"); setShowNewPack(true); }}>
             <Plus className="w-3.5 h-3.5 mr-1" /> Novo Pack
           </Button>
         ) : (
@@ -675,7 +756,7 @@ export default function Estoque() {
               <button type="button" onClick={() => setCategoriaFilter("todas")} className={cn("shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-semibold transition-colors", categoriaFilter === "todas" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground")}>Todos <span className="ml-1 opacity-75">{itens.length}</span></button>
               {categorias.map((categoria) => (
                 <button key={categoria} type="button" onClick={() => setCategoriaFilter(categoria)} className={cn("shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-semibold transition-colors", categoriaFilter === categoria ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground")}>
-                  {categoria} <span className="ml-1 opacity-75">{categoryCounts[categoria]}</span>
+                   {categoria} <span className="ml-1 opacity-75">{categoryCounts[categoria] || 0}</span>
                 </button>
               ))}
             </div>
@@ -748,21 +829,18 @@ export default function Estoque() {
                       <div className="flex flex-1 flex-col p-3">
                         <div className="min-w-0">
                           <h3 className="line-clamp-2 min-h-9 font-display text-sm font-bold leading-[1.15] text-foreground">{item.nome}</h3>
-                          <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
-                            <span className="truncate">{item.fornecedor || "Sem fornecedor"}</span>
-                            {docCounts[item.id] > 0 && <span className="flex shrink-0 items-center gap-1"><Paperclip className="h-2.5 w-2.5" />{docCounts[item.id]}</span>}
-                          </div>
+                          {docCounts[item.id] > 0 && <span className="mt-1.5 flex items-center gap-1 text-[10px] font-medium text-primary"><Paperclip className="h-2.5 w-2.5" /> {docCounts[item.id]} {docCounts[item.id] === 1 ? "arquivo vinculado" : "arquivos vinculados"}</span>}
                         </div>
 
                         <div className="mt-3 flex items-end justify-between gap-3">
                           <div>
-                            <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Saldo disponível</p>
+                            <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Disponível agora</p>
                             <p className="mt-0.5 text-lg font-bold leading-none text-foreground">
                               {item.saldo_atual} <span className="text-[10px] font-medium text-muted-foreground">{item.unidade}(s)</span>
                             </p>
                           </div>
                           <div className="text-right">
-                            <p className="text-[9px] text-muted-foreground">Custo unitário</p>
+                            <p className="text-[9px] text-muted-foreground">Valor por unidade</p>
                             <p className="text-xs font-bold text-foreground">R$ {item.custo_unitario.toFixed(2)}</p>
                           </div>
                         </div>
@@ -770,8 +848,8 @@ export default function Estoque() {
                           <div className={cn("h-full rounded-full transition-all", st.barColor)} style={{ width: `${pct}%` }} />
                         </div>
                         <div className="mt-2 flex items-center justify-between text-[9px] text-muted-foreground">
-                          <span>Mínimo: {item.minimo} · Ideal: {item.ideal}</span>
-                          <span>{new Date(item.created_at).toLocaleDateString("pt-BR")}</span>
+                          <span>{item.saldo_atual < item.minimo ? `Faltam ${item.minimo - item.saldo_atual} para o mínimo` : `Mínimo ${item.minimo} · Meta ${item.ideal}`}</span>
+                          <span>Cadastro {new Date(item.created_at).toLocaleDateString("pt-BR")}</span>
                         </div>
 
                         <div className="mt-auto grid grid-cols-[1fr_1fr_auto] gap-1.5 border-t border-border/70 pt-3">
@@ -832,6 +910,7 @@ export default function Estoque() {
               const coverItem = getPackCoverItem(pack);
               const totalUnits = pack.itens.reduce((sum, packItem) => sum + packItem.quantidade, 0);
               const capacity = getPackCapacity(pack);
+              const bag = getPackBag(pack);
               return (
                 <article key={pack.id} className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg">
                   <button type="button" onClick={() => openEditPack(pack)} className="relative block aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset" aria-label={`Visualizar e editar ${pack.nome}`}>
@@ -886,6 +965,9 @@ export default function Estoque() {
                         </Badge>
                       ))}
                       {pack.itens.length > 3 && <Badge variant="secondary" className="px-1.5 text-[9px]">+{pack.itens.length - 3}</Badge>}
+                      <Badge variant="outline" className={cn("px-1.5 text-[9px] font-medium", bag ? "border-primary/25 bg-primary/5 text-primary" : "bg-muted/60 text-muted-foreground")}>
+                        {bag ? `Saco: ${bag.nome}` : "Sem saco"}
+                      </Badge>
                     </div>
 
                     <div className="mt-auto grid grid-cols-[1fr_1fr_auto] gap-1.5 border-t border-border/70 pt-3">
@@ -919,7 +1001,7 @@ export default function Estoque() {
               <Layers className="w-10 h-10 mb-3 opacity-30" />
               <p className="text-sm">Nenhum pack cadastrado</p>
               <p className="text-xs mt-1">Packs agrupam múltiplos itens diferentes</p>
-              <Button size="sm" variant="outline" className="mt-3" onClick={() => { setPackForm({ nome: "", descricao: "" }); setPackItensForm([]); setShowNewPack(true); }}>
+              <Button size="sm" variant="outline" className="mt-3" onClick={() => { setPackForm({ nome: "", descricao: "" }); setPackItensForm([]); setPackBagChoice("sem_saco"); setShowNewPack(true); }}>
                 <Plus className="w-3.5 h-3.5 mr-1" /> Criar primeiro pack
               </Button>
             </div>
@@ -950,8 +1032,8 @@ export default function Estoque() {
               return (
                 <article key={solicitacao.id} className="content-card rounded-xl p-3 sm:p-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", solicitacao.finalidade === "reposicao" ? "bg-primary/10 text-primary" : "bg-accent/20 text-accent-foreground")}>
-                      {solicitacao.finalidade === "reposicao" ? <ShoppingCart className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                     <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", solicitacao.finalidade === "cadastro" ? "bg-primary/10 text-primary" : solicitacao.finalidade === "reposicao" ? "bg-primary/10 text-primary" : "bg-accent/20 text-accent-foreground")}>
+                       {solicitacao.finalidade === "cadastro" ? <ClipboardList className="h-4 w-4" /> : solicitacao.finalidade === "reposicao" ? <ShoppingCart className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -959,9 +1041,11 @@ export default function Estoque() {
                         <Badge className={cn("border-0 text-[9px] capitalize", statusStyle)} variant="secondary">{solicitacao.status}</Badge>
                         <Badge variant="outline" className="text-[9px] capitalize">{solicitacao.finalidade}</Badge>
                       </div>
-                      <p className="mt-1 text-[10px] text-muted-foreground">
-                        {getSolicitacaoTarget(solicitacao)} · {solicitacao.quantidade} {solicitacao.unidade}(s) · {new Date(solicitacao.created_at).toLocaleDateString("pt-BR")}
-                      </p>
+                       <p className="mt-1 text-[10px] text-muted-foreground">
+                         {solicitacao.finalidade === "cadastro"
+                           ? `Cadastro sem movimentação de estoque · ${new Date(solicitacao.created_at).toLocaleDateString("pt-BR")}`
+                           : `${getSolicitacaoTarget(solicitacao)} · ${solicitacao.quantidade} ${solicitacao.unidade}(s) · ${new Date(solicitacao.created_at).toLocaleDateString("pt-BR")}`}
+                       </p>
                       {solicitacao.observacao && <p className="mt-1 line-clamp-2 text-[10px] text-muted-foreground">{solicitacao.observacao}</p>}
                     </div>
                     <div className="flex shrink-0 gap-1.5">
@@ -1308,22 +1392,28 @@ export default function Estoque() {
         <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-xl bg-background">
           <SheetHeader>
             <SheetTitle className="font-display text-lg">Nova Solicitação</SheetTitle>
-            <p className="text-xs text-muted-foreground">Peça reposição, impressão, montagem de packs ou retirada para consumo.</p>
+             <p className="text-xs text-muted-foreground">Solicite o cadastro de um novo produto ou registre uma necessidade de reposição e consumo.</p>
           </SheetHeader>
           <div className="mx-auto grid max-w-3xl gap-4 py-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label className="text-xs">Finalidade</Label>
-              <Select value={solicitacaoForm.finalidade} onValueChange={(value: "reposicao" | "consumo") => setSolicitacaoForm((form) => ({ ...form, finalidade: value }))}>
+               <Label className="text-xs">O que você precisa?</Label>
+               <Select value={solicitacaoForm.finalidade} onValueChange={(value: "cadastro" | "reposicao" | "consumo") => setSolicitacaoForm((form) => ({
+                 ...form,
+                 finalidade: value,
+                 alvo_tipo: value === "cadastro" ? "livre" : form.alvo_tipo === "livre" ? "item" : form.alvo_tipo,
+                 alvo_id: value === "cadastro" ? "" : form.alvo_id,
+               }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
+                   <SelectItem value="cadastro">Cadastrar novo produto</SelectItem>
                   <SelectItem value="reposicao">Reposição / aumentar estoque</SelectItem>
                   <SelectItem value="consumo">Consumo / retirada</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+             <div className={cn("space-y-1.5", solicitacaoForm.finalidade === "cadastro" && "opacity-60")}>
               <Label className="text-xs">Tipo</Label>
-              <Select value={solicitacaoForm.alvo_tipo} onValueChange={(value: "item" | "pack" | "livre") => setSolicitacaoForm((form) => ({ ...form, alvo_tipo: value, alvo_id: "", unidade: value === "pack" ? "pack" : "unidade" }))}>
+               <Select disabled={solicitacaoForm.finalidade === "cadastro"} value={solicitacaoForm.alvo_tipo} onValueChange={(value: "item" | "pack" | "livre") => setSolicitacaoForm((form) => ({ ...form, alvo_tipo: value, alvo_id: "", unidade: value === "pack" ? "pack" : "unidade" }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="item">Item do estoque</SelectItem>
@@ -1332,6 +1422,12 @@ export default function Estoque() {
                 </SelectContent>
               </Select>
             </div>
+             {solicitacaoForm.finalidade === "cadastro" && (
+               <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-primary sm:col-span-2">
+                 <p className="font-semibold">Esta solicitação não movimenta o estoque.</p>
+                 <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">Descreva o produto, brinde, papelaria ou saco plástico que precisa ser cadastrado. Ao concluir, a equipe apenas confirma o cadastro; a entrada física será registrada separadamente.</p>
+               </div>
+             )}
             {solicitacaoForm.alvo_tipo !== "livre" && (
               <div className="space-y-1.5 sm:col-span-2">
                 <Label className="text-xs">{solicitacaoForm.alvo_tipo === "pack" ? "Pack" : "Item"}</Label>
@@ -1347,20 +1443,24 @@ export default function Estoque() {
               </div>
             )}
             <div className="space-y-1.5 sm:col-span-2">
-              <Label className="text-xs">O que está sendo solicitado *</Label>
-              <Input placeholder="Ex: Imprimir novos folders do projeto" value={solicitacaoForm.titulo} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, titulo: event.target.value }))} />
+               <Label className="text-xs">O que está sendo solicitado *</Label>
+               <Input placeholder={solicitacaoForm.finalidade === "cadastro" ? "Ex: Cadastrar novo brinde para o Pack Ovelha" : "Ex: Imprimir novos folders do projeto"} value={solicitacaoForm.titulo} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, titulo: event.target.value }))} />
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Quantidade</Label>
-              <Input type="number" min={1} value={solicitacaoForm.quantidade} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, quantidade: Math.max(1, Number(event.target.value)) }))} />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs">Unidade</Label>
-              <Input value={solicitacaoForm.unidade} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, unidade: event.target.value }))} />
-            </div>
+             {solicitacaoForm.finalidade !== "cadastro" && (
+               <>
+                 <div className="space-y-1.5">
+                   <Label className="text-xs">Quantidade</Label>
+                   <Input type="number" min={1} value={solicitacaoForm.quantidade} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, quantidade: Math.max(1, Number(event.target.value)) }))} />
+                 </div>
+                 <div className="space-y-1.5">
+                   <Label className="text-xs">Unidade</Label>
+                   <Input value={solicitacaoForm.unidade} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, unidade: event.target.value }))} />
+                 </div>
+               </>
+             )}
             <div className="space-y-1.5 sm:col-span-2">
-              <Label className="text-xs">Detalhes</Label>
-              <Input placeholder="Prazo, destino, justificativa ou fornecedor" value={solicitacaoForm.observacao} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, observacao: event.target.value }))} />
+               <Label className="text-xs">Detalhes</Label>
+               <Input placeholder={solicitacaoForm.finalidade === "cadastro" ? "Categoria, características, finalidade e pack relacionado" : "Prazo, destino, justificativa ou fornecedor"} value={solicitacaoForm.observacao} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, observacao: event.target.value }))} />
             </div>
           </div>
           <SheetFooter className="gap-2">
