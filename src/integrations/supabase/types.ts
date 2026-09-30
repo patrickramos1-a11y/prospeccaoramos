@@ -540,12 +540,51 @@ export type Database = {
           },
         ]
       }
+      pack_movimentacoes: {
+        Row: {
+          created_at: string
+          id: string
+          observacao: string | null
+          pack_id: string
+          quantidade: number
+          saldo_resultante: number
+          tipo: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          pack_id: string
+          quantidade: number
+          saldo_resultante: number
+          tipo: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          pack_id?: string
+          quantidade?: number
+          saldo_resultante?: number
+          tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pack_movimentacoes_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "packs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       packs: {
         Row: {
           created_at: string
           descricao: string | null
           id: string
           nome: string
+          saldo_atual: number
           updated_at: string
         }
         Insert: {
@@ -553,6 +592,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           nome: string
+          saldo_atual?: number
           updated_at?: string
         }
         Update: {
@@ -560,9 +600,70 @@ export type Database = {
           descricao?: string | null
           id?: string
           nome?: string
+          saldo_atual?: number
           updated_at?: string
         }
         Relationships: []
+      }
+      estoque_solicitacoes: {
+        Row: {
+          alvo_tipo: string
+          created_at: string
+          finalidade: string
+          id: string
+          item_id: string | null
+          observacao: string | null
+          pack_id: string | null
+          quantidade: number
+          status: string
+          titulo: string
+          unidade: string
+          updated_at: string
+        }
+        Insert: {
+          alvo_tipo: string
+          created_at?: string
+          finalidade: string
+          id?: string
+          item_id?: string | null
+          observacao?: string | null
+          pack_id?: string | null
+          quantidade?: number
+          status?: string
+          titulo: string
+          unidade?: string
+          updated_at?: string
+        }
+        Update: {
+          alvo_tipo?: string
+          created_at?: string
+          finalidade?: string
+          id?: string
+          item_id?: string | null
+          observacao?: string | null
+          pack_id?: string | null
+          quantidade?: number
+          status?: string
+          titulo?: string
+          unidade?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estoque_solicitacoes_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "estoque_itens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estoque_solicitacoes_pack_id_fkey"
+            columns: ["pack_id"]
+            isOneToOne: false
+            referencedRelation: "packs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       usuarios: {
         Row: {
@@ -716,7 +817,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      movimentar_pack: {
+        Args: {
+          p_observacao?: string | null
+          p_pack_id: string
+          p_quantidade: number
+          p_tipo: string
+        }
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

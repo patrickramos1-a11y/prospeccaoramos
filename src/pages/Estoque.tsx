@@ -4,7 +4,8 @@ import { cn } from "@/lib/utils";
 import {
   Package, Plus, Search, AlertCircle, ArrowDown, ArrowUp,
   TrendingDown, Boxes, Pencil, Trash2, X, Check, Layers, Upload, Paperclip,
-  Eye, ExternalLink, Link2, ShoppingCart, MoreHorizontal, Clock3, Store, Link2Off
+  Eye, ExternalLink, Link2, ShoppingCart, MoreHorizontal, Clock3, Store, Link2Off,
+  ClipboardList, Wrench, Send, CircleCheckBig
 } from "lucide-react";
 import { EstoqueDocumentosManager } from "@/components/EstoqueDocumentosManager";
 import { Input } from "@/components/ui/input";
@@ -47,7 +48,32 @@ interface Pack {
   id: string;
   nome: string;
   descricao: string | null;
+  saldo_atual: number;
   itens: PackItem[];
+}
+
+interface Solicitacao {
+  id: string;
+  finalidade: "reposicao" | "consumo";
+  alvo_tipo: "item" | "pack" | "livre";
+  item_id: string | null;
+  pack_id: string | null;
+  titulo: string;
+  quantidade: number;
+  unidade: string;
+  observacao: string | null;
+  status: "pendente" | "aprovada" | "atendida" | "cancelada";
+  created_at: string;
+}
+
+interface PackMovimentacao {
+  id: string;
+  pack_id: string;
+  tipo: "entrada" | "saida";
+  quantidade: number;
+  saldo_resultante: number;
+  observacao: string | null;
+  created_at: string;
 }
 
 const CATEGORIAS = ["Brinde", "Embalagem", "Papelaria"];
@@ -55,13 +81,15 @@ const CATEGORIAS = ["Brinde", "Embalagem", "Papelaria"];
 export default function Estoque() {
   const [itens, setItens] = useState<EstoqueItem[]>([]);
   const [packs, setPacks] = useState<Pack[]>([]);
+  const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
+  const [packMovimentacoes, setPackMovimentacoes] = useState<PackMovimentacao[]>([]);
   const [docCounts, setDocCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [categoriaFilter, setCategoriaFilter] = useState("todas");
   const [quickFilter, setQuickFilter] = useState<"todos" | "criticos" | "recentes" | "sem_fornecedor" | "sem_link">("todos");
   const [sortBy, setSortBy] = useState<"recentes" | "nome" | "estoque" | "maior-estoque" | "menor-custo" | "maior-custo">("recentes");
-  const [activeTab, setActiveTab] = useState<"itens" | "packs">("itens");
+  const [activeTab, setActiveTab] = useState<"itens" | "packs" | "solicitacoes">("itens");
 
   // Sheets
   const [showNewItem, setShowNewItem] = useState(false);
@@ -72,6 +100,11 @@ export default function Estoque() {
   const [movQtd, setMovQtd] = useState(0);
   const [showNewPack, setShowNewPack] = useState(false);
   const [editingPack, setEditingPack] = useState<Pack | null>(null);
+  const [movingPack, setMovingPack] = useState<Pack | null>(null);
+  const [packMovType, setPackMovType] = useState<"entrada" | "saida">("entrada");
+  const [packMovQtd, setPackMovQtd] = useState(1);
+  const [packMovObs, setPackMovObs] = useState("");
+  const [showNewSolicitacao, setShowNewSolicitacao] = useState(false);
 
   // New item form
   const [newItem, setNewItem] = useState({
@@ -92,17 +125,28 @@ export default function Estoque() {
   const [packItensForm, setPackItensForm] = useState<{ item_id: string; quantidade: number }[]>([]);
   const [packNewItemId, setPackNewItemId] = useState("");
   const [packNewItemQtd, setPackNewItemQtd] = useState(1);
+  const [solicitacaoForm, setSolicitacaoForm] = useState({
+    finalidade: "reposicao" as "reposicao" | "consumo",
+    alvo_tipo: "item" as "item" | "pack" | "livre",
+    alvo_id: "",
+    titulo: "",
+    quantidade: 1,
+    unidade: "unidade",
+    observacao: "",
+  });
 
   useEffect(() => {
     fetchAll();
   }, []);
 
   const fetchAll = async () => {
-    const [itensRes, packsRes, packItensRes, docsRes] = await Promise.all([
+    const [itensRes, packsRes, packItensRes, docsRes, solicitacoesRes, packMovimentacoesRes] = await Promise.all([
       supabase.from("estoque_itens").select("*").order("nome"),
       supabase.from("packs").select("*").order("nome"),
       supabase.from("pack_itens").select("*"),
       supabase.from("estoque_itens_documentos").select("item_id"),
+      supabase.from("estoque_solicitacoes").select("*").order("created_at", { ascending: false }),
+      supabase.from("pack_movimentacoes").select("*").order("created_at", { ascending: false }),
     ]);
     if (itensRes.data) setItens(itensRes.data);
 
@@ -119,6 +163,8 @@ export default function Estoque() {
       itens: packItensList.filter(pi => pi.pack_id === p.id),
     }));
     setPacks(packsWithItens);
+    if (solicitacoesRes.data) setSolicitacoes(solicitacoesRes.data);
+    if (packMovimentacoesRes.data) setPackMovimentacoes(packMovimentacoesRes.data);
     setLoading(false);
   };
 
@@ -165,6 +211,13 @@ export default function Estoque() {
       || pack.descricao?.toLowerCase().includes(query)
       || pack.itens.some((packItem) => getItemName(packItem.item_id).toLowerCase().includes(query));
   });
+  const filteredSolicitacoes = solicitacoes.filter((solicitacao) => {
+    const query = search.trim().toLowerCase();
+    return !query
+      || solicitacao.titulo.toLowerCase().includes(query)
+      || solicitacao.observacao?.toLowerCase().includes(query)
+      || getSolicitacaoTarget(solicitacao).toLowerCase().includes(query);
+  });
 
   const totalItens = itens.length;
   const alertaCount = itens.filter((i) => i.saldo_atual < i.minimo).length;
@@ -181,6 +234,12 @@ export default function Estoque() {
     return itens.find((item) => item.id === id)?.nome || "—";
   }
 
+  function getSolicitacaoTarget(solicitacao: Solicitacao) {
+    if (solicitacao.item_id) return getItemName(solicitacao.item_id);
+    if (solicitacao.pack_id) return packs.find((pack) => pack.id === solicitacao.pack_id)?.nome || "Pack removido";
+    return solicitacao.titulo;
+  }
+
   const getPackCoverItem = (pack: Pack) => pack.itens
     .map((packItem) => itens.find((item) => item.id === packItem.item_id))
     .find((item) => item?.imagem_url)
@@ -193,6 +252,11 @@ export default function Estoque() {
       return item && packItem.quantidade > 0 ? Math.floor(item.saldo_atual / packItem.quantidade) : 0;
     }));
   };
+
+  const getPackCost = (pack: Pack) => pack.itens.reduce((total, packItem) => {
+    const item = itens.find((candidate) => candidate.id === packItem.item_id);
+    return total + (item?.custo_unitario || 0) * packItem.quantidade;
+  }, 0);
 
   // Image upload helper
   const uploadImage = async (file: File): Promise<string | null> => {
@@ -374,6 +438,80 @@ export default function Estoque() {
     setPackNewItemQtd(1);
   };
 
+  const openPackMovement = (pack: Pack, type: "entrada" | "saida") => {
+    setMovingPack(pack);
+    setPackMovType(type);
+    setPackMovQtd(1);
+    setPackMovObs("");
+  };
+
+  const handlePackMovement = async () => {
+    if (!movingPack || packMovQtd <= 0) return;
+    const { error } = await supabase.rpc("movimentar_pack", {
+      p_pack_id: movingPack.id,
+      p_tipo: packMovType,
+      p_quantidade: packMovQtd,
+      p_observacao: packMovObs || null,
+    });
+    if (error) {
+      toast({ title: "Não foi possível movimentar o pack", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({
+      title: packMovType === "entrada" ? `${packMovQtd} pack(s) montado(s)` : `${packMovQtd} pack(s) retirado(s)`,
+      description: packMovType === "entrada" ? "Os itens da composição foram baixados do estoque." : "A saída foi registrada no histórico.",
+    });
+    setMovingPack(null);
+    fetchAll();
+  };
+
+  const openSolicitacao = (target?: EstoqueItem | Pack, targetType?: "item" | "pack", finalidade: "reposicao" | "consumo" = "reposicao") => {
+    setSolicitacaoForm({
+      finalidade,
+      alvo_tipo: targetType || "item",
+      alvo_id: target?.id || "",
+      titulo: target ? `${finalidade === "reposicao" ? "Repor" : "Consumir"} ${target.nome}` : "",
+      quantidade: 1,
+      unidade: targetType === "pack" ? "pack" : target && "unidade" in target ? target.unidade : "unidade",
+      observacao: "",
+    });
+    setShowNewSolicitacao(true);
+  };
+
+  const handleCreateSolicitacao = async () => {
+    if (!solicitacaoForm.titulo.trim() || (solicitacaoForm.alvo_tipo !== "livre" && !solicitacaoForm.alvo_id)) {
+      toast({ title: "Informe o pedido e o item ou pack", variant: "destructive" });
+      return;
+    }
+    const { error } = await supabase.from("estoque_solicitacoes").insert({
+      finalidade: solicitacaoForm.finalidade,
+      alvo_tipo: solicitacaoForm.alvo_tipo,
+      item_id: solicitacaoForm.alvo_tipo === "item" ? solicitacaoForm.alvo_id : null,
+      pack_id: solicitacaoForm.alvo_tipo === "pack" ? solicitacaoForm.alvo_id : null,
+      titulo: solicitacaoForm.titulo.trim(),
+      quantidade: solicitacaoForm.quantidade,
+      unidade: solicitacaoForm.unidade,
+      observacao: solicitacaoForm.observacao.trim() || null,
+    });
+    if (error) {
+      toast({ title: "Erro ao criar solicitação", description: error.message, variant: "destructive" });
+      return;
+    }
+    setShowNewSolicitacao(false);
+    toast({ title: "Solicitação registrada" });
+    fetchAll();
+  };
+
+  const updateSolicitacaoStatus = async (id: string, status: Solicitacao["status"]) => {
+    const { error } = await supabase.from("estoque_solicitacoes").update({ status }).eq("id", id);
+    if (error) {
+      toast({ title: "Erro ao atualizar solicitação", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Status atualizado" });
+    fetchAll();
+  };
+
   const movItem = itens.find(i => i.id === movItemId);
 
   if (loading) {
@@ -464,6 +602,9 @@ export default function Estoque() {
         <button className={cn("flex-1 text-xs font-medium py-2 rounded-md transition-colors", activeTab === "packs" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")} onClick={() => setActiveTab("packs")}>
           <Layers className="w-3.5 h-3.5 inline mr-1" /> Packs ({packs.length})
         </button>
+        <button className={cn("flex-1 text-xs font-medium py-2 rounded-md transition-colors", activeTab === "solicitacoes" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground")} onClick={() => setActiveTab("solicitacoes")}>
+          <ClipboardList className="w-3.5 h-3.5 inline mr-1" /> Solicitações ({solicitacoes.filter((solicitacao) => solicitacao.status === "pendente").length})
+        </button>
       </div>
 
       {/* Actions */}
@@ -477,9 +618,13 @@ export default function Estoque() {
               <Plus className="w-3.5 h-3.5 mr-1" /> Novo Item
             </Button>
           </>
-        ) : (
+        ) : activeTab === "packs" ? (
           <Button size="sm" className="flex-1 text-xs" onClick={() => { setPackForm({ nome: "", descricao: "" }); setPackItensForm([]); setPackNewItemId(""); setShowNewPack(true); }}>
             <Plus className="w-3.5 h-3.5 mr-1" /> Novo Pack
+          </Button>
+        ) : (
+          <Button size="sm" className="flex-1 text-xs" onClick={() => openSolicitacao()}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Nova Solicitação
           </Button>
         )}
       </div>
@@ -507,7 +652,7 @@ export default function Estoque() {
         <div className="flex flex-col gap-2 lg:flex-row">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <Input placeholder={activeTab === "itens" ? "Buscar produto, categoria ou fornecedor..." : "Buscar pack..."} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
+            <Input placeholder={activeTab === "itens" ? "Buscar produto, categoria ou fornecedor..." : activeTab === "packs" ? "Buscar pack..." : "Buscar solicitação..."} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
           </div>
           {activeTab === "itens" && (
             <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
@@ -649,6 +794,8 @@ export default function Estoque() {
                             <DropdownMenuContent align="end" className="w-40">
                               <DropdownMenuItem onSelect={() => openEntrada(item.id)} className="text-xs"><ArrowDown className="mr-2 h-3.5 w-3.5" /> Registrar entrada</DropdownMenuItem>
                               <DropdownMenuItem onSelect={() => openSaida(item.id)} className="text-xs"><ArrowUp className="mr-2 h-3.5 w-3.5" /> Registrar saída</DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => openSolicitacao(item, "item", "reposicao")} className="text-xs"><ClipboardList className="mr-2 h-3.5 w-3.5" /> Solicitar reposição</DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => openSolicitacao(item, "item", "consumo")} className="text-xs"><Send className="mr-2 h-3.5 w-3.5" /> Solicitar consumo</DropdownMenuItem>
                               <DropdownMenuItem onSelect={() => openEdit(item)} className="text-xs"><Pencil className="mr-2 h-3.5 w-3.5" /> Editar item</DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onSelect={() => handleDelete(item.id)} className="text-xs text-destructive focus:text-destructive"><Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir item</DropdownMenuItem>
@@ -716,16 +863,21 @@ export default function Estoque() {
                       <p className="mt-1 line-clamp-2 min-h-7 text-[10px] leading-snug text-muted-foreground">{pack.descricao || "Conjunto de materiais vinculados"}</p>
                     </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2 rounded-lg bg-muted/50 p-2">
+                    <div className="mt-3 grid grid-cols-3 gap-2 rounded-lg bg-muted/50 p-2">
                       <div>
-                        <p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">Composição</p>
-                        <p className="mt-0.5 text-xs font-bold text-foreground">{totalUnits} unidade(s)</p>
+                        <p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">Em estoque</p>
+                        <p className={cn("mt-0.5 text-xs font-bold", pack.saldo_atual > 0 ? "text-primary" : "text-destructive")}>{pack.saldo_atual} pack(s)</p>
+                      </div>
+                      <div>
+                        <p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">Pode montar</p>
+                        <p className="mt-0.5 text-xs font-bold text-foreground">{capacity} pack(s)</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">Disponível</p>
-                        <p className={cn("mt-0.5 text-xs font-bold", capacity > 0 ? "text-primary" : "text-destructive")}>{capacity} pack(s)</p>
+                        <p className="text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">Custo</p>
+                        <p className="mt-0.5 text-xs font-bold text-foreground">R$ {getPackCost(pack).toFixed(2)}</p>
                       </div>
                     </div>
+                    <p className="mt-1.5 text-[9px] text-muted-foreground">{totalUnits} unidade(s) por pack</p>
 
                     <div className="mt-2 flex flex-wrap gap-1">
                       {pack.itens.slice(0, 3).map((packItem) => (
@@ -736,16 +888,22 @@ export default function Estoque() {
                       {pack.itens.length > 3 && <Badge variant="secondary" className="px-1.5 text-[9px]">+{pack.itens.length - 3}</Badge>}
                     </div>
 
-                    <div className="mt-auto grid grid-cols-[1fr_auto] gap-1.5 border-t border-border/70 pt-3">
-                      <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-[10px]" onClick={() => openEditPack(pack)}>
-                        <Eye className="mr-1 h-3 w-3" /> Ver pack
+                    <div className="mt-auto grid grid-cols-[1fr_1fr_auto] gap-1.5 border-t border-border/70 pt-3">
+                      <Button type="button" size="sm" className="h-8 px-2 text-[10px]" onClick={() => openPackMovement(pack, "entrada")} disabled={capacity === 0}>
+                        <Wrench className="mr-1 h-3 w-3" /> Montar
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-[10px]" onClick={() => openPackMovement(pack, "saida")} disabled={pack.saldo_atual === 0}>
+                        <ArrowUp className="mr-1 h-3 w-3" /> Saída
                       </Button>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button type="button" size="icon" variant="ghost" className="h-8 w-8" aria-label={`Mais ações para ${pack.nome}`}><MoreHorizontal className="h-4 w-4" /></Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40">
+                          <DropdownMenuItem onSelect={() => openEditPack(pack)} className="text-xs"><Eye className="mr-2 h-3.5 w-3.5" /> Ver pack</DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => openEditPack(pack)} className="text-xs"><Pencil className="mr-2 h-3.5 w-3.5" /> Editar pack</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => openSolicitacao(pack, "pack", "reposicao")} className="text-xs"><ClipboardList className="mr-2 h-3.5 w-3.5" /> Solicitar reposição</DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => openSolicitacao(pack, "pack", "consumo")} className="text-xs"><Send className="mr-2 h-3.5 w-3.5" /> Solicitar consumo</DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onSelect={() => handleDeletePack(pack.id)} className="text-xs text-destructive focus:text-destructive"><Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir pack</DropdownMenuItem>
                         </DropdownMenuContent>
@@ -764,6 +922,75 @@ export default function Estoque() {
               <Button size="sm" variant="outline" className="mt-3" onClick={() => { setPackForm({ nome: "", descricao: "" }); setPackItensForm([]); setShowNewPack(true); }}>
                 <Plus className="w-3.5 h-3.5 mr-1" /> Criar primeiro pack
               </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* REQUESTS */}
+      {activeTab === "solicitacoes" && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {(["pendente", "aprovada", "atendida", "cancelada"] as const).map((status) => (
+              <div key={status} className="metric-card rounded-lg p-3 text-center">
+                <p className="text-lg font-bold text-foreground">{solicitacoes.filter((solicitacao) => solicitacao.status === status).length}</p>
+                <p className="text-[9px] capitalize text-muted-foreground">{status}</p>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-2">
+            {filteredSolicitacoes.map((solicitacao) => {
+              const statusStyle = solicitacao.status === "atendida"
+                ? "bg-primary/10 text-primary"
+                : solicitacao.status === "cancelada"
+                  ? "bg-destructive/10 text-destructive"
+                  : solicitacao.status === "aprovada"
+                    ? "bg-accent/20 text-accent-foreground"
+                    : "bg-muted text-foreground";
+              return (
+                <article key={solicitacao.id} className="content-card rounded-xl p-3 sm:p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg", solicitacao.finalidade === "reposicao" ? "bg-primary/10 text-primary" : "bg-accent/20 text-accent-foreground")}>
+                      {solicitacao.finalidade === "reposicao" ? <ShoppingCart className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-display text-sm font-bold text-foreground">{solicitacao.titulo}</h3>
+                        <Badge className={cn("border-0 text-[9px] capitalize", statusStyle)} variant="secondary">{solicitacao.status}</Badge>
+                        <Badge variant="outline" className="text-[9px] capitalize">{solicitacao.finalidade}</Badge>
+                      </div>
+                      <p className="mt-1 text-[10px] text-muted-foreground">
+                        {getSolicitacaoTarget(solicitacao)} · {solicitacao.quantidade} {solicitacao.unidade}(s) · {new Date(solicitacao.created_at).toLocaleDateString("pt-BR")}
+                      </p>
+                      {solicitacao.observacao && <p className="mt-1 line-clamp-2 text-[10px] text-muted-foreground">{solicitacao.observacao}</p>}
+                    </div>
+                    <div className="flex shrink-0 gap-1.5">
+                      {solicitacao.status === "pendente" && (
+                        <Button size="sm" variant="outline" className="h-8 text-[10px]" onClick={() => updateSolicitacaoStatus(solicitacao.id, "aprovada")}>
+                          <Check className="mr-1 h-3 w-3" /> Aprovar
+                        </Button>
+                      )}
+                      {solicitacao.status !== "atendida" && solicitacao.status !== "cancelada" && (
+                        <Button size="sm" className="h-8 text-[10px]" onClick={() => updateSolicitacaoStatus(solicitacao.id, "atendida")}>
+                          <CircleCheckBig className="mr-1 h-3 w-3" /> Atender
+                        </Button>
+                      )}
+                      {solicitacao.status !== "cancelada" && solicitacao.status !== "atendida" && (
+                        <Button size="sm" variant="ghost" className="h-8 px-2 text-[10px] text-destructive" onClick={() => updateSolicitacaoStatus(solicitacao.id, "cancelada")}>
+                          Cancelar
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          {filteredSolicitacoes.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+              <ClipboardList className="mb-3 h-10 w-10 opacity-30" />
+              <p className="text-sm">Nenhuma solicitação encontrada</p>
+              <Button size="sm" variant="outline" className="mt-3" onClick={() => openSolicitacao()}><Plus className="mr-1 h-3.5 w-3.5" /> Nova solicitação</Button>
             </div>
           )}
         </div>
@@ -998,13 +1225,147 @@ export default function Estoque() {
         <SheetContent side="bottom" className="h-[85vh] overflow-y-auto rounded-t-lg bg-background">
           <SheetHeader><SheetTitle className="font-display text-lg">Editar Pack</SheetTitle></SheetHeader>
           <div className="space-y-3 py-4">
+            {editingPack && (
+              <>
+                <div className="grid grid-cols-3 gap-2 rounded-xl border border-border bg-card p-3 text-center">
+                  <div><p className="text-lg font-bold text-primary">{editingPack.saldo_atual}</p><p className="text-[9px] text-muted-foreground">Em estoque</p></div>
+                  <div><p className="text-lg font-bold text-foreground">{getPackCapacity(editingPack)}</p><p className="text-[9px] text-muted-foreground">Pode montar</p></div>
+                  <div><p className="text-lg font-bold text-foreground">R$ {getPackCost(editingPack).toFixed(2)}</p><p className="text-[9px] text-muted-foreground">Custo calculado</p></div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button type="button" size="sm" onClick={() => { setEditingPack(null); openPackMovement(editingPack, "entrada"); }} disabled={getPackCapacity(editingPack) === 0}><Wrench className="mr-1.5 h-3.5 w-3.5" /> Montar packs</Button>
+                  <Button type="button" size="sm" variant="outline" onClick={() => { setEditingPack(null); openPackMovement(editingPack, "saida"); }} disabled={editingPack.saldo_atual === 0}><ArrowUp className="mr-1.5 h-3.5 w-3.5" /> Registrar saída</Button>
+                </div>
+              </>
+            )}
             <div className="space-y-1.5"><Label className="text-xs">Nome</Label><Input value={packForm.nome} onChange={e => setPackForm(p => ({ ...p, nome: e.target.value }))} /></div>
             <div className="space-y-1.5"><Label className="text-xs">Descrição</Label><Input value={packForm.descricao} onChange={e => setPackForm(p => ({ ...p, descricao: e.target.value }))} /></div>
             <PackItemsEditor />
+            {editingPack && packMovimentacoes.some((movimentacao) => movimentacao.pack_id === editingPack.id) && (
+              <div className="rounded-xl border border-border bg-card p-3">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Últimas movimentações</p>
+                <div className="space-y-1.5">
+                  {packMovimentacoes.filter((movimentacao) => movimentacao.pack_id === editingPack.id).slice(0, 5).map((movimentacao) => (
+                    <div key={movimentacao.id} className="flex items-center gap-2 rounded-lg bg-muted/45 p-2 text-[10px]">
+                      <span className={cn("flex h-6 w-6 items-center justify-center rounded-full", movimentacao.tipo === "entrada" ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive")}>
+                        {movimentacao.tipo === "entrada" ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />}
+                      </span>
+                      <span className="flex-1"><strong>{movimentacao.tipo === "entrada" ? "+" : "−"}{movimentacao.quantidade}</strong> · saldo {movimentacao.saldo_resultante}{movimentacao.observacao ? ` · ${movimentacao.observacao}` : ""}</span>
+                      <span className="text-muted-foreground">{new Date(movimentacao.created_at).toLocaleDateString("pt-BR")}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <SheetFooter className="gap-2">
             <Button variant="outline" onClick={() => setEditingPack(null)} className="flex-1">Cancelar</Button>
             <Button onClick={handleSavePack} className="flex-1">Salvar</Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet: Movimentar Pack */}
+      <Sheet open={!!movingPack} onOpenChange={(open) => !open && setMovingPack(null)}>
+        <SheetContent side="bottom" className="rounded-t-xl bg-background">
+          <SheetHeader>
+            <SheetTitle className="font-display text-lg">{packMovType === "entrada" ? "Montar packs" : "Registrar saída de packs"}</SheetTitle>
+            <p className="text-xs text-muted-foreground">
+              {packMovType === "entrada" ? "Cada unidade montada baixa automaticamente os itens da composição." : "A saída reduz o saldo de packs prontos."}
+            </p>
+          </SheetHeader>
+          {movingPack && (
+            <div className="space-y-4 py-4">
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="font-medium text-sm">{movingPack.nome}</p>
+                <div className="mt-1 flex gap-4 text-[10px] text-muted-foreground">
+                  <span>Saldo pronto: <strong className="text-foreground">{movingPack.saldo_atual}</strong></span>
+                  <span>Pode montar: <strong className="text-foreground">{getPackCapacity(movingPack)}</strong></span>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Quantidade</Label>
+                <Input type="number" min={1} max={packMovType === "entrada" ? getPackCapacity(movingPack) : movingPack.saldo_atual} value={packMovQtd} onChange={(event) => setPackMovQtd(Math.max(1, Number(event.target.value)))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Observação</Label>
+                <Input placeholder="Ex: Montagem para visita em Castanhal" value={packMovObs} onChange={(event) => setPackMovObs(event.target.value)} />
+              </div>
+            </div>
+          )}
+          <SheetFooter className="gap-2">
+            <Button variant="outline" onClick={() => setMovingPack(null)} className="flex-1">Cancelar</Button>
+            <Button onClick={handlePackMovement} disabled={!movingPack || packMovQtd <= 0 || (packMovType === "entrada" ? packMovQtd > getPackCapacity(movingPack) : packMovQtd > movingPack.saldo_atual)} variant={packMovType === "saida" ? "destructive" : "default"} className="flex-1">
+              {packMovType === "entrada" ? <Wrench className="mr-1.5 h-3.5 w-3.5" /> : <ArrowUp className="mr-1.5 h-3.5 w-3.5" />}
+              {packMovType === "entrada" ? `Montar ${packMovQtd}` : `Retirar ${packMovQtd}`}
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet: Nova Solicitação */}
+      <Sheet open={showNewSolicitacao} onOpenChange={setShowNewSolicitacao}>
+        <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-xl bg-background">
+          <SheetHeader>
+            <SheetTitle className="font-display text-lg">Nova Solicitação</SheetTitle>
+            <p className="text-xs text-muted-foreground">Peça reposição, impressão, montagem de packs ou retirada para consumo.</p>
+          </SheetHeader>
+          <div className="mx-auto grid max-w-3xl gap-4 py-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Finalidade</Label>
+              <Select value={solicitacaoForm.finalidade} onValueChange={(value: "reposicao" | "consumo") => setSolicitacaoForm((form) => ({ ...form, finalidade: value }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="reposicao">Reposição / aumentar estoque</SelectItem>
+                  <SelectItem value="consumo">Consumo / retirada</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Tipo</Label>
+              <Select value={solicitacaoForm.alvo_tipo} onValueChange={(value: "item" | "pack" | "livre") => setSolicitacaoForm((form) => ({ ...form, alvo_tipo: value, alvo_id: "", unidade: value === "pack" ? "pack" : "unidade" }))}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="item">Item do estoque</SelectItem>
+                  <SelectItem value="pack">Pack</SelectItem>
+                  <SelectItem value="livre">Pedido livre</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {solicitacaoForm.alvo_tipo !== "livre" && (
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-xs">{solicitacaoForm.alvo_tipo === "pack" ? "Pack" : "Item"}</Label>
+                <Select value={solicitacaoForm.alvo_id} onValueChange={(value) => {
+                  const item = itens.find((candidate) => candidate.id === value);
+                  setSolicitacaoForm((form) => ({ ...form, alvo_id: value, unidade: form.alvo_tipo === "pack" ? "pack" : item?.unidade || "unidade" }));
+                }}>
+                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectContent>
+                    {(solicitacaoForm.alvo_tipo === "pack" ? packs : itens).map((target) => <SelectItem key={target.id} value={target.id}>{target.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs">O que está sendo solicitado *</Label>
+              <Input placeholder="Ex: Imprimir novos folders do projeto" value={solicitacaoForm.titulo} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, titulo: event.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Quantidade</Label>
+              <Input type="number" min={1} value={solicitacaoForm.quantidade} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, quantidade: Math.max(1, Number(event.target.value)) }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Unidade</Label>
+              <Input value={solicitacaoForm.unidade} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, unidade: event.target.value }))} />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label className="text-xs">Detalhes</Label>
+              <Input placeholder="Prazo, destino, justificativa ou fornecedor" value={solicitacaoForm.observacao} onChange={(event) => setSolicitacaoForm((form) => ({ ...form, observacao: event.target.value }))} />
+            </div>
+          </div>
+          <SheetFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowNewSolicitacao(false)} className="flex-1">Cancelar</Button>
+            <Button onClick={handleCreateSolicitacao} className="flex-1"><ClipboardList className="mr-1.5 h-3.5 w-3.5" /> Registrar solicitação</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
