@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import {
   Package, Plus, Search, AlertCircle, ArrowDown, ArrowUp,
   TrendingDown, Boxes, Pencil, Trash2, X, Check, Layers, Upload, Paperclip,
-  Eye, ExternalLink, Link2, ShoppingCart
+  Eye, ExternalLink, Link2, ShoppingCart, MoreHorizontal, Clock3, Store, Link2Off
 } from "lucide-react";
 import { EstoqueDocumentosManager } from "@/components/EstoqueDocumentosManager";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,9 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "@/hooks/use-toast";
 
 interface EstoqueItem {
@@ -57,7 +60,8 @@ export default function Estoque() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [categoriaFilter, setCategoriaFilter] = useState("todas");
-  const [sortBy, setSortBy] = useState<"recentes" | "nome" | "estoque">("recentes");
+  const [quickFilter, setQuickFilter] = useState<"todos" | "criticos" | "recentes" | "sem_fornecedor" | "sem_link">("todos");
+  const [sortBy, setSortBy] = useState<"recentes" | "nome" | "estoque" | "maior-estoque" | "menor-custo" | "maior-custo">("recentes");
   const [activeTab, setActiveTab] = useState<"itens" | "packs">("itens");
 
   // Sheets
@@ -119,20 +123,40 @@ export default function Estoque() {
     setLoading(false);
   };
 
-  const categorias = ["todas", ...Array.from(new Set(itens.map((i) => i.categoria)))];
+  const isRecent = (createdAt: string) => Date.now() - new Date(createdAt).getTime() <= 7 * 24 * 60 * 60 * 1000;
+  const categorias = Array.from(new Set(itens.map((i) => i.categoria))).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const categoryCounts = itens.reduce<Record<string, number>>((counts, item) => {
+    counts[item.categoria] = (counts[item.categoria] || 0) + 1;
+    return counts;
+  }, {});
+  const quickCounts = {
+    criticos: itens.filter((item) => item.saldo_atual < item.minimo).length,
+    recentes: itens.filter((item) => isRecent(item.created_at)).length,
+    sem_fornecedor: itens.filter((item) => !item.fornecedor?.trim()).length,
+    sem_link: itens.filter((item) => !item.compra_url?.trim()).length,
+  };
   const filtered = itens
     .filter((item) => {
       const query = search.trim().toLowerCase();
       const matchSearch = !query
         || item.nome.toLowerCase().includes(query)
         || item.categoria.toLowerCase().includes(query)
-        || item.fornecedor?.toLowerCase().includes(query);
+        || item.fornecedor?.toLowerCase().includes(query)
+        || item.compra_url?.toLowerCase().includes(query);
       const matchCat = categoriaFilter === "todas" || item.categoria === categoriaFilter;
-      return matchSearch && matchCat;
+      const matchQuick = quickFilter === "todos"
+        || (quickFilter === "criticos" && item.saldo_atual < item.minimo)
+        || (quickFilter === "recentes" && isRecent(item.created_at))
+        || (quickFilter === "sem_fornecedor" && !item.fornecedor?.trim())
+        || (quickFilter === "sem_link" && !item.compra_url?.trim());
+      return matchSearch && matchCat && matchQuick;
     })
     .sort((a, b) => {
       if (sortBy === "recentes") return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       if (sortBy === "estoque") return a.saldo_atual - b.saldo_atual;
+      if (sortBy === "maior-estoque") return b.saldo_atual - a.saldo_atual;
+      if (sortBy === "menor-custo") return a.custo_unitario - b.custo_unitario;
+      if (sortBy === "maior-custo") return b.custo_unitario - a.custo_unitario;
       return a.nome.localeCompare(b.nome, "pt-BR");
     });
   const filteredPacks = packs.filter(p => p.nome.toLowerCase().includes(search.toLowerCase()));
@@ -459,26 +483,54 @@ export default function Estoque() {
       )}
 
       {/* Search and discovery controls */}
-      <div className="filter-bar rounded-lg p-2 flex flex-col lg:flex-row gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-          <Input placeholder={activeTab === "itens" ? "Buscar item, categoria ou fornecedor..." : "Buscar pack..."} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
-        </div>
-        {activeTab === "itens" && (
-          <div className="grid grid-cols-2 gap-2 lg:flex">
-            <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
-              <SelectTrigger className="h-9 text-xs lg:w-36"><SelectValue /></SelectTrigger>
-              <SelectContent>{categorias.map((c) => (<SelectItem key={c} value={c} className="text-xs capitalize">{c === "todas" ? "Todas as categorias" : c}</SelectItem>))}</SelectContent>
-            </Select>
+      <div className="filter-bar rounded-xl p-2.5 space-y-2.5">
+        <div className="flex flex-col gap-2 lg:flex-row">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+            <Input placeholder={activeTab === "itens" ? "Buscar produto, categoria ou fornecedor..." : "Buscar pack..."} value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 h-9 text-xs" />
+          </div>
+          {activeTab === "itens" && (
             <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
-              <SelectTrigger className="h-9 text-xs lg:w-40"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-9 text-xs lg:w-44"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="recentes" className="text-xs">Mais recentes</SelectItem>
                 <SelectItem value="nome" className="text-xs">Nome (A–Z)</SelectItem>
                 <SelectItem value="estoque" className="text-xs">Menor estoque</SelectItem>
+                <SelectItem value="maior-estoque" className="text-xs">Maior saldo</SelectItem>
+                <SelectItem value="menor-custo" className="text-xs">Menor custo</SelectItem>
+                <SelectItem value="maior-custo" className="text-xs">Maior custo</SelectItem>
               </SelectContent>
             </Select>
-          </div>
+          )}
+        </div>
+
+        {activeTab === "itens" && (
+          <>
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5" aria-label="Filtrar por categoria">
+              <button type="button" onClick={() => setCategoriaFilter("todas")} className={cn("shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-semibold transition-colors", categoriaFilter === "todas" ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground")}>Todos <span className="ml-1 opacity-75">{itens.length}</span></button>
+              {categorias.map((categoria) => (
+                <button key={categoria} type="button" onClick={() => setCategoriaFilter(categoria)} className={cn("shrink-0 rounded-full border px-3 py-1.5 text-[10px] font-semibold transition-colors", categoriaFilter === categoria ? "border-primary bg-primary text-primary-foreground" : "border-border bg-card text-muted-foreground hover:border-primary/40 hover:text-foreground")}>
+                  {categoria} <span className="ml-1 opacity-75">{categoryCounts[categoria]}</span>
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-1.5 overflow-x-auto border-t border-border/70 pt-2" aria-label="Filtros rápidos">
+              {([
+                { value: "criticos", label: "Estoque crítico", count: quickCounts.criticos, icon: AlertCircle },
+                { value: "recentes", label: "Recém-cadastrados", count: quickCounts.recentes, icon: Clock3 },
+                { value: "sem_fornecedor", label: "Sem fornecedor", count: quickCounts.sem_fornecedor, icon: Store },
+                { value: "sem_link", label: "Sem link de compra", count: quickCounts.sem_link, icon: Link2Off },
+              ] as const).map((filter) => {
+                const Icon = filter.icon;
+                const selected = quickFilter === filter.value;
+                return (
+                  <button key={filter.value} type="button" onClick={() => setQuickFilter(selected ? "todos" : filter.value)} className={cn("flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[10px] font-medium transition-colors", selected ? "border-primary/30 bg-primary/10 text-primary" : "border-transparent bg-muted/55 text-muted-foreground hover:bg-muted hover:text-foreground")}>
+                    <Icon className="h-3 w-3" /> {filter.label} <span className={cn("rounded-full px-1.5 py-0.5 text-[9px] font-bold", selected ? "bg-primary text-primary-foreground" : "bg-background text-foreground")}>{filter.count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
         )}
       </div>
 
@@ -490,23 +542,23 @@ export default function Estoque() {
               <p className="text-xs font-medium text-muted-foreground">
                 {filtered.length} {filtered.length === 1 ? "item encontrado" : "itens encontrados"}
               </p>
-              {categoriaFilter !== "todas" && (
-                <button onClick={() => setCategoriaFilter("todas")} className="text-[10px] font-semibold text-primary hover:underline">
-                  Limpar categoria
+              {(categoriaFilter !== "todas" || quickFilter !== "todos" || search) && (
+                <button onClick={() => { setCategoriaFilter("todas"); setQuickFilter("todos"); setSearch(""); }} className="text-[10px] font-semibold text-primary hover:underline">
+                  Limpar filtros
                 </button>
               )}
             </div>
           )}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
                 {filtered.map((item) => {
                   const st = getEstoqueStatus(item);
                   const pct = item.ideal > 0 ? Math.min((item.saldo_atual / item.ideal) * 100, 100) : 0;
                   return (
-                    <article key={item.id} className="group overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg">
+                    <article key={item.id} className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg">
                       <button
                         type="button"
                         onClick={() => openEdit(item)}
-                        className="relative block aspect-[16/9] min-h-48 w-full overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
+                        className="relative block aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset"
                         aria-label={`Visualizar e editar ${item.nome}`}
                       >
                         {item.imagem_url ? (
@@ -517,7 +569,7 @@ export default function Estoque() {
                             <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em]">Sem imagem</span>
                           </div>
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/5" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-black/5" />
 
                         <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
                           <Badge className="border-white/25 bg-white/90 px-2 text-[9px] font-bold text-foreground shadow-sm backdrop-blur-sm hover:bg-white">
@@ -526,53 +578,62 @@ export default function Estoque() {
                           <Badge className={cn("border-0 px-2 text-[9px] font-bold shadow-sm", st.color)} variant="secondary">{st.label}</Badge>
                         </div>
 
-                        <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-                          <h3 className="font-display text-base font-bold leading-tight drop-shadow-sm">{item.nome}</h3>
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            <span className="rounded-full border border-white/20 bg-black/35 px-2 py-1 text-[9px] font-medium backdrop-blur-md">
-                              {item.fornecedor || "Sem fornecedor"}
-                            </span>
-                            <span className="rounded-full border border-white/20 bg-black/35 px-2 py-1 text-[9px] font-medium backdrop-blur-md">
-                              R$ {item.custo_unitario.toFixed(2)}/{item.unidade}
-                            </span>
-                            {docCounts[item.id] > 0 && (
-                              <span className="flex items-center gap-1 rounded-full border border-white/20 bg-black/35 px-2 py-1 text-[9px] font-medium backdrop-blur-md">
-                                <Paperclip className="h-2.5 w-2.5" /> {docCounts[item.id]} {docCounts[item.id] === 1 ? "arquivo" : "arquivos"}
-                              </span>
-                            )}
-                          </div>
-                        </div>
                       </button>
 
-                      <div className="p-3">
-                        <div className="flex items-end justify-between gap-4">
+                      <div className="flex flex-1 flex-col p-3">
+                        <div className="min-w-0">
+                          <h3 className="line-clamp-2 min-h-9 font-display text-sm font-bold leading-[1.15] text-foreground">{item.nome}</h3>
+                          <div className="mt-1.5 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                            <span className="truncate">{item.fornecedor || "Sem fornecedor"}</span>
+                            {docCounts[item.id] > 0 && <span className="flex shrink-0 items-center gap-1"><Paperclip className="h-2.5 w-2.5" />{docCounts[item.id]}</span>}
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex items-end justify-between gap-3">
                           <div>
                             <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">Saldo disponível</p>
-                            <p className="mt-0.5 text-xl font-bold leading-none text-foreground">
+                            <p className="mt-0.5 text-lg font-bold leading-none text-foreground">
                               {item.saldo_atual} <span className="text-[10px] font-medium text-muted-foreground">{item.unidade}(s)</span>
                             </p>
                           </div>
-                          <p className="text-[10px] text-muted-foreground">Meta: <span className="font-semibold text-foreground">{item.ideal}</span></p>
+                          <div className="text-right">
+                            <p className="text-[9px] text-muted-foreground">Custo unitário</p>
+                            <p className="text-xs font-bold text-foreground">R$ {item.custo_unitario.toFixed(2)}</p>
+                          </div>
                         </div>
-                        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
                           <div className={cn("h-full rounded-full transition-all", st.barColor)} style={{ width: `${pct}%` }} />
                         </div>
-                        <div className="mt-3 flex items-center justify-between border-t border-border/70 pt-2">
-                          <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground">
-                            <span>Mínimo: {item.minimo}</span>
-                            <span aria-hidden="true">•</span>
-                            <span>Cadastrado {new Date(item.created_at).toLocaleDateString("pt-BR")}</span>
-                          </div>
-                          <div className="flex gap-0.5">
-                            <button aria-label={`Visualizar ${item.nome}`} onClick={() => openEdit(item)} className="p-2 hover:bg-primary/10 rounded-lg transition-colors text-primary" title="Visualizar e editar"><Eye className="w-3.5 h-3.5" /></button>
-                            {item.compra_url && (
-                              <a aria-label={`Abrir link de compra de ${item.nome}`} href={item.compra_url} target="_blank" rel="noreferrer" className="p-2 hover:bg-primary/10 rounded-lg transition-colors text-primary" title="Comprar ou repor"><ShoppingCart className="w-3.5 h-3.5" /></a>
-                            )}
-                            <button aria-label={`Registrar entrada de ${item.nome}`} onClick={() => openEntrada(item.id)} className="p-2 hover:bg-secondary rounded-lg transition-colors text-status-visited" title="Entrada"><ArrowDown className="w-3.5 h-3.5" /></button>
-                            <button aria-label={`Registrar saída de ${item.nome}`} onClick={() => openSaida(item.id)} className="p-2 hover:bg-accent/15 rounded-lg transition-colors text-accent-foreground" title="Saída"><ArrowUp className="w-3.5 h-3.5" /></button>
-                            <button aria-label={`Editar ${item.nome}`} onClick={() => openEdit(item)} className="p-2 hover:bg-muted rounded-lg transition-colors text-muted-foreground" title="Editar"><Pencil className="w-3.5 h-3.5" /></button>
-                            <button aria-label={`Excluir ${item.nome}`} onClick={() => handleDelete(item.id)} className="p-2 hover:bg-destructive/10 rounded-lg transition-colors text-destructive/60" title="Excluir"><Trash2 className="w-3.5 h-3.5" /></button>
-                          </div>
+                        <div className="mt-2 flex items-center justify-between text-[9px] text-muted-foreground">
+                          <span>Mínimo: {item.minimo} · Ideal: {item.ideal}</span>
+                          <span>{new Date(item.created_at).toLocaleDateString("pt-BR")}</span>
+                        </div>
+
+                        <div className="mt-auto grid grid-cols-[1fr_1fr_auto] gap-1.5 border-t border-border/70 pt-3">
+                          <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-[10px]" onClick={() => openEdit(item)}>
+                            <Eye className="mr-1 h-3 w-3" /> Ver produto
+                          </Button>
+                          {item.compra_url ? (
+                            <Button asChild size="sm" className="h-8 px-2 text-[10px]">
+                              <a href={item.compra_url} target="_blank" rel="noreferrer"><ShoppingCart className="mr-1 h-3 w-3" /> Comprar / repor</a>
+                            </Button>
+                          ) : (
+                            <Button type="button" size="sm" variant="secondary" className="h-8 px-2 text-[10px] text-muted-foreground" disabled>
+                              <Link2Off className="mr-1 h-3 w-3" /> Sem link
+                            </Button>
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button type="button" size="icon" variant="ghost" className="h-8 w-8" aria-label={`Mais ações para ${item.nome}`}><MoreHorizontal className="h-4 w-4" /></Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-40">
+                              <DropdownMenuItem onSelect={() => openEntrada(item.id)} className="text-xs"><ArrowDown className="mr-2 h-3.5 w-3.5" /> Registrar entrada</DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => openSaida(item.id)} className="text-xs"><ArrowUp className="mr-2 h-3.5 w-3.5" /> Registrar saída</DropdownMenuItem>
+                              <DropdownMenuItem onSelect={() => openEdit(item)} className="text-xs"><Pencil className="mr-2 h-3.5 w-3.5" /> Editar item</DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onSelect={() => handleDelete(item.id)} className="text-xs text-destructive focus:text-destructive"><Trash2 className="mr-2 h-3.5 w-3.5" /> Excluir item</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     </article>
