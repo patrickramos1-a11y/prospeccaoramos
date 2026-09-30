@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
@@ -6,6 +6,7 @@ import { getGmailComposeUrl, getWhatsAppUrl, isUsefulContactValue } from "@/lib/
 import {
   Landmark, Plus, Search, MapPin, Users, Phone, Mail,
   Pencil, Trash2, Loader2, Check, MessageCircle, UserPlus, Building2, FileText,
+  ChevronDown, ChevronRight, Layers3, List, X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -65,6 +66,7 @@ const emptyForm: FormState = {
 };
 
 const ALL_VALUE = "__all__";
+type ViewMode = "lista" | "tipo" | "municipio";
 
 export default function Orgaos() {
   const qc = useQueryClient();
@@ -79,6 +81,8 @@ export default function Orgaos() {
   const [contatoSheetOpen, setContatoSheetOpen] = useState(false);
   const [contatoSearch, setContatoSearch] = useState("");
   const [detailOrgaoId, setDetailOrgaoId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>("lista");
+  const [expandedOrgaoIds, setExpandedOrgaoIds] = useState<string[]>([]);
 
   const { data: orgaos = [], isLoading } = useQuery({
     queryKey: ["orgaos"],
@@ -149,17 +153,29 @@ export default function Orgaos() {
     return map;
   }, [vinculosAll]);
 
-  const munLabel = (id: string | null) => {
+  const munLabel = useCallback((id: string | null) => {
     if (!id) return "—";
     const m = munById.get(id);
     return m ? `${m.nome}/${m.estado}` : "—";
-  };
+  }, [munById]);
 
   const tipoOptions = useMemo(() => {
     return Array.from(new Set(orgaos.map((o) => o.tipo.trim()).filter(isUsefulContactValue))).sort((a, b) =>
       a.localeCompare(b),
     );
   }, [orgaos]);
+
+  const estadosComCadastro = useMemo(
+    () => Array.from(new Set(orgaos.map((o) => o.estado).filter(isUsefulContactValue))).sort(),
+    [orgaos],
+  );
+
+  const municipiosComCadastro = useMemo(() => {
+    const ids = new Set(orgaos.map((o) => o.municipio_id).filter(Boolean) as string[]);
+    return municipios
+      .filter((m) => ids.has(m.id) && (estadoFilter === ALL_VALUE || m.estado === estadoFilter))
+      .sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [orgaos, municipios, estadoFilter]);
 
   const hasActiveFilters =
     municipioFilter !== ALL_VALUE ||
@@ -187,7 +203,39 @@ export default function Orgaos() {
           (vinculoFilter === "sem" && vinculosCount === 0))
       );
     });
-  }, [orgaos, search, munById, municipioFilter, estadoFilter, tipoFilter, vinculoFilter, vinculosByOrgao]);
+  }, [orgaos, search, munLabel, municipioFilter, estadoFilter, tipoFilter, vinculoFilter, vinculosByOrgao]);
+
+  const groupedOrgaos = useMemo(() => {
+    if (viewMode === "lista") {
+      return [{ key: "lista", label: "Todos os órgãos", detail: `${filtered.length} resultado(s)`, items: filtered }];
+    }
+
+    const groups = new Map<string, OrgaoRow[]>();
+    filtered.forEach((orgao) => {
+      const key = viewMode === "tipo"
+        ? orgao.tipo.trim() || "Sem tipo informado"
+        : orgao.municipio_id || "__sem_municipio__";
+      groups.set(key, [...(groups.get(key) ?? []), orgao]);
+    });
+
+    return Array.from(groups.entries())
+      .map(([key, items]) => {
+        if (viewMode === "tipo") {
+          return { key, label: key, detail: `${items.length} órgão(s)`, items };
+        }
+        const contatosDoGrupo = items.reduce(
+          (total, orgao) => total + (vinculosByOrgao.get(orgao.id)?.length ?? 0),
+          0,
+        );
+        return {
+          key,
+          label: key === "__sem_municipio__" ? "Sem município informado" : munLabel(key),
+          detail: `${items.length} órgão(s) · ${contatosDoGrupo} contato(s)`,
+          items,
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [filtered, viewMode, vinculosByOrgao, munLabel]);
 
   const municipiosDoEstado = useMemo(
     () => municipios.filter((m) => !form.estado || m.estado === form.estado),
@@ -217,6 +265,18 @@ export default function Orgaos() {
       }
     }
   }, [form.estado]); // eslint-disable-line
+
+  useEffect(() => {
+    if (municipioFilter !== ALL_VALUE && !municipiosComCadastro.some((m) => m.id === municipioFilter)) {
+      setMunicipioFilter(ALL_VALUE);
+    }
+  }, [estadoFilter, municipioFilter, municipiosComCadastro]);
+
+  const toggleExpanded = (id: string) => {
+    setExpandedOrgaoIds((current) =>
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
+    );
+  };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -338,14 +398,36 @@ export default function Orgaos() {
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          { label: "Órgãos", count: orgaos.length, color: "text-primary bg-primary/8 border-primary/15" },
-          { label: "Municípios atendidos", count: new Set(orgaos.map((o) => o.municipio_id).filter(Boolean)).size, color: "text-accent-foreground bg-accent/8 border-accent/20" },
-          { label: "Vínculos", count: totalVinculos, color: "text-status-visited bg-status-visited/8 border-status-visited/15" },
+          { label: "Órgãos", hint: "Agrupar por tipo", count: orgaos.length, mode: "tipo" as ViewMode, color: "text-primary bg-primary/8 border-primary/15" },
+          { label: "Municípios atendidos", hint: "Agrupar por município", count: new Set(orgaos.map((o) => o.municipio_id).filter(Boolean)).size, mode: "municipio" as ViewMode, color: "text-accent-foreground bg-accent/8 border-accent/20" },
+          { label: "Vínculos", hint: "Ver órgãos com contatos", count: totalVinculos, mode: "lista" as ViewMode, color: "text-status-visited bg-status-visited/8 border-status-visited/15" },
         ].map((s) => (
-          <Card key={s.label} className={cn("metric-card border", s.color.split(" ").at(-1))}>
+          <Card
+            key={s.label}
+            role="button"
+            tabIndex={0}
+            aria-pressed={viewMode === s.mode && (s.label !== "Vínculos" || vinculoFilter === "com")}
+            onClick={() => {
+              setViewMode(s.mode);
+              if (s.label === "Vínculos") setVinculoFilter("com");
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setViewMode(s.mode);
+                if (s.label === "Vínculos") setVinculoFilter("com");
+              }
+            }}
+            className={cn(
+              "metric-card border cursor-pointer transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+              s.color.split(" ").at(-1),
+              viewMode === s.mode && (s.label !== "Vínculos" || vinculoFilter === "com") && "ring-2 ring-primary/35 shadow-sm",
+            )}
+          >
             <CardContent className="p-3 text-center">
               <p className={cn("font-display font-bold text-2xl", s.color.split(" ")[0])}>{s.count}</p>
               <p className="text-[11px] text-muted-foreground mt-0.5">{s.label}</p>
+              <p className="text-[9px] font-semibold text-primary/75 mt-1">{s.hint}</p>
             </CardContent>
           </Card>
         ))}
@@ -365,14 +447,14 @@ export default function Orgaos() {
           <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Município" /></SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_VALUE}>Todos municípios</SelectItem>
-            {municipios.map((m) => <SelectItem key={m.id} value={m.id}>{m.nome}/{m.estado}</SelectItem>)}
+            {municipiosComCadastro.map((m) => <SelectItem key={m.id} value={m.id}>{m.nome}/{m.estado}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={estadoFilter} onValueChange={setEstadoFilter}>
           <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="UF" /></SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL_VALUE}>Todas UFs</SelectItem>
-            {ESTADOS_BR.map((uf) => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
+            {estadosComCadastro.map((uf) => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={tipoFilter} onValueChange={setTipoFilter}>
@@ -410,118 +492,166 @@ export default function Orgaos() {
       {isLoading ? (
         <div className="flex justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
       ) : (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {filtered.map((o) => {
-            const vincs = vinculosByOrgao.get(o.id) ?? [];
-            return (
-              <Card
-                key={o.id}
-                onClick={() => setDetailOrgaoId(o.id)}
-                className="entity-card transition-all cursor-pointer group"
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3 pb-3 border-b border-border/55">
-                    <div className="w-11 h-11 rounded-lg bg-primary/12 flex items-center justify-center flex-shrink-0 group-hover:bg-primary/18 transition-colors ring-1 ring-primary/15">
-                      <Landmark className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-foreground truncate">
-                        {o.sigla ? `${o.sigla} — ` : ""}{o.nome}
-                      </p>
-                      {o.tipo && <p className="text-xs text-muted-foreground truncate">{o.tipo}</p>}
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <MapPin className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-[11px] text-muted-foreground">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {viewMode === "lista" ? <List className="w-3.5 h-3.5" /> : <Layers3 className="w-3.5 h-3.5" />}
+              <span>
+                {viewMode === "lista" && "Lista compacta"}
+                {viewMode === "tipo" && "Agrupado por tipo de órgão"}
+                {viewMode === "municipio" && "Agrupado por município"}
+              </span>
+              <strong className="text-foreground">{filtered.length} resultado(s)</strong>
+            </div>
+            {viewMode !== "lista" && (
+              <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => setViewMode("lista")}>
+                <X className="w-3 h-3" /> Remover agrupamento
+              </Button>
+            )}
+          </div>
+
+          {groupedOrgaos.map((group) => (
+            <section key={group.key} className="content-card rounded-lg overflow-hidden">
+              {viewMode !== "lista" && (
+                <div className="flex items-center justify-between gap-3 px-4 py-2.5 bg-primary/[0.045] border-b border-border/60">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {viewMode === "municipio" ? <MapPin className="w-3.5 h-3.5 text-primary flex-shrink-0" /> : <Landmark className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                    <h2 className="text-xs font-bold text-foreground truncate">{group.label}</h2>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground whitespace-nowrap">{group.detail}</span>
+                </div>
+              )}
+
+              <div className="hidden lg:grid grid-cols-[minmax(280px,1.8fr)_minmax(170px,1fr)_minmax(170px,1fr)_90px_88px] gap-3 px-4 py-2 border-b border-border/55 bg-muted/25 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                <span>Órgão</span>
+                <span>Tipo</span>
+                <span>Município</span>
+                <span>Contatos</span>
+                <span className="text-right">Ações</span>
+              </div>
+
+              <div className="divide-y divide-border/55">
+                {group.items.map((o) => {
+                  const vincs = vinculosByOrgao.get(o.id) ?? [];
+                  const expanded = expandedOrgaoIds.includes(o.id);
+                  return (
+                    <div key={o.id} className={cn("transition-colors", expanded && "bg-primary/[0.025]")}>
+                      <div className="grid grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(280px,1.8fr)_minmax(170px,1fr)_minmax(170px,1fr)_90px_88px] gap-3 items-center px-3 sm:px-4 py-3 hover:bg-muted/30">
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(o.id)}
+                          aria-expanded={expanded}
+                          className="flex items-center gap-2.5 min-w-0 text-left rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                        >
+                          <span className="w-7 h-7 rounded-md bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                            {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-xs sm:text-sm font-semibold text-foreground truncate">
+                              {o.sigla ? `${o.sigla} — ` : ""}{o.nome}
+                            </p>
+                            <p className="lg:hidden text-[10px] text-muted-foreground truncate mt-0.5">
+                              {[o.tipo, munLabel(o.municipio_id)].filter(Boolean).join(" · ")}
+                            </p>
+                          </div>
+                        </button>
+
+                        <span className="hidden lg:block text-xs text-muted-foreground truncate">{o.tipo || "Sem tipo"}</span>
+                        <span className="hidden lg:flex items-center gap-1 text-xs text-muted-foreground truncate">
+                          <MapPin className="w-3 h-3 flex-shrink-0" />
                           {munLabel(o.municipio_id)}{!o.municipio_id && o.estado ? ` · ${o.estado}` : ""}
                         </span>
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(o.id)}
+                          className="hidden lg:inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                        >
+                          <Users className="w-3 h-3" /> {vincs.length}
+                        </button>
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            title="Editar órgão"
+                            aria-label={`Editar ${o.sigla || o.nome}`}
+                            onClick={() => openEdit(o)}
+                            className="w-8 h-8 inline-flex items-center justify-center rounded-md text-primary hover:bg-primary/10"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            title="Excluir órgão"
+                            aria-label={`Excluir ${o.sigla || o.nome}`}
+                            onClick={() => {
+                              if (confirm(`Excluir órgão "${o.sigla || o.nome}"?`)) deleteMutation.mutate(o.id);
+                            }}
+                            className="w-8 h-8 inline-flex items-center justify-center rounded-md text-destructive hover:bg-destructive/10"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="mt-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
-                        <Users className="w-3 h-3" /> Contatos ({vincs.length})
-                      </div>
-                      {vincs.length > 0 && (
-                        <span className="text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                          Ver detalhes →
-                        </span>
+                      {expanded && (
+                        <div className="px-3 sm:px-4 pb-4 lg:pl-[58px] animate-fade-in">
+                          <div className="rounded-lg border border-border/60 bg-background overflow-hidden">
+                            <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 bg-muted/30 border-b border-border/55">
+                              <span className="text-[11px] font-semibold text-foreground flex items-center gap-1.5">
+                                <Users className="w-3.5 h-3.5 text-primary" /> Contatos vinculados ({vincs.length})
+                              </span>
+                              <Button variant="ghost" size="sm" className="h-7 text-[10px]" onClick={() => setDetailOrgaoId(o.id)}>
+                                Ver ficha completa
+                              </Button>
+                            </div>
+                            {vincs.length === 0 ? (
+                              <p className="px-3 py-4 text-[11px] text-muted-foreground italic">Nenhum contato vinculado a este órgão.</p>
+                            ) : (
+                              <div className="grid md:grid-cols-2 xl:grid-cols-3 bg-background">
+                                {vincs.map((v) => {
+                                  const c = contatoById.get(v.contato_id);
+                                  if (!c) return null;
+                                  const whatsappUrl = c.whatsapp ? getWhatsAppUrl(c.telefone) : null;
+                                  const emailUrl = getGmailComposeUrl(c.email);
+                                  return (
+                                    <div key={v.contato_id} className="p-3 bg-background min-w-0 border-b border-r border-border/45 last:border-b-0">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                          <p className="text-xs font-semibold text-foreground truncate">{c.nome}</p>
+                                          <p className="text-[10px] text-muted-foreground truncate">{v.papel || c.cargo || "Contato"}</p>
+                                        </div>
+                                        {c.nivel && <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{c.nivel}</span>}
+                                      </div>
+                                      <div className="flex flex-wrap gap-1.5 mt-2">
+                                        {isUsefulContactValue(c.telefone) && (
+                                          <a href={`tel:${c.telefone}`} className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline">
+                                            <Phone className="w-3 h-3" /> {c.telefone}
+                                          </a>
+                                        )}
+                                        {whatsappUrl && (
+                                          <a href={whatsappUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] text-status-visited hover:underline">
+                                            <MessageCircle className="w-3 h-3" /> WhatsApp
+                                          </a>
+                                        )}
+                                        {emailUrl && (
+                                          <a href={emailUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline max-w-full">
+                                            <Mail className="w-3 h-3 flex-shrink-0" /> <span className="truncate">{c.email}</span>
+                                          </a>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       )}
                     </div>
-                    {vincs.length === 0 ? (
-                      <p className="text-[11px] text-muted-foreground/70 italic">Nenhum contato vinculado</p>
-                    ) : (
-                      <>
-                        <ul className="grid grid-cols-3 gap-x-2 gap-y-1.5">
-                          {vincs.slice(0, 6).map((v) => {
-                            const c = contatoById.get(v.contato_id);
-                            if (!c) return null;
-                            const initials = c.nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
-                            return (
-                              <li key={v.contato_id} className="flex items-center gap-1.5 min-w-0">
-                                <span className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-[9px] font-bold text-primary">
-                                  {initials}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-[11px] font-medium text-foreground truncate leading-tight">{c.nome}</p>
-                                  {(v.papel || c.cargo) && (
-                                    <p className="text-[9px] text-muted-foreground truncate leading-tight">
-                                      {v.papel || c.cargo}
-                                    </p>
-                                  )}
-                                </div>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                        {vincs.length > 6 && (
-                          <div className="flex items-center gap-2 pt-2 mt-1 border-t border-border/30">
-                            <div className="flex -space-x-1.5">
-                              {vincs.slice(6, 9).map((v) => {
-                                const c = contatoById.get(v.contato_id);
-                                if (!c) return null;
-                                const initials = c.nome.split(" ").map((n) => n[0]).slice(0, 2).join("").toUpperCase();
-                                return (
-                                  <span
-                                    key={v.contato_id}
-                                    title={c.nome}
-                                    className="w-5 h-5 rounded-full bg-muted border-2 border-card flex items-center justify-center text-[8px] font-bold text-muted-foreground"
-                                  >
-                                    {initials}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                            <span className="text-[10px] font-medium text-primary">
-                              +{vincs.length - 6} · ver todos
-                            </span>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  <div className="mt-3 pt-3 border-t border-border/55 flex items-center gap-2">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); openEdit(o); }}
-                      className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-primary transition-colors py-2 rounded-md hover:bg-primary/10"
-                    >
-                      <Pencil className="w-3.5 h-3.5" /> Editar
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(`Excluir órgão "${o.sigla || o.nome}"?`)) deleteMutation.mutate(o.id);
-                      }}
-                      className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold text-destructive transition-colors py-2 rounded-md hover:bg-destructive/10"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" /> Excluir
-                    </button>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  );
+                })}
+              </div>
+            </section>
+          ))}
         </div>
       )}
 
