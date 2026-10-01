@@ -140,6 +140,7 @@ export default function Estoque() {
   // Sheets
   const [showNewItem, setShowNewItem] = useState(false);
   const [editingItem, setEditingItem] = useState<EstoqueItem | null>(null);
+  const [isEditingItemDetails, setIsEditingItemDetails] = useState(false);
   const [showEntrada, setShowEntrada] = useState(false);
   const [showSaida, setShowSaida] = useState(false);
   const [movItemId, setMovItemId] = useState<string | null>(null);
@@ -411,6 +412,7 @@ export default function Estoque() {
       compra_url: item.compra_url || "",
     });
     setEditImage(null);
+    setIsEditingItemDetails(false);
     setEditingItem(item);
   };
 
@@ -1379,15 +1381,29 @@ export default function Estoque() {
       </Sheet>
 
       {/* Sheet: Editar Item */}
-      <Sheet open={!!editingItem} onOpenChange={(open) => !open && setEditingItem(null)}>
+      <Sheet open={!!editingItem} onOpenChange={(open) => {
+        if (!open) {
+          setEditingItem(null);
+          setIsEditingItemDetails(false);
+        }
+      }}>
         <SheetContent side="bottom" className="h-[92vh] overflow-y-auto rounded-t-xl bg-background">
           <SheetHeader>
             <SheetTitle className="font-display text-lg">Detalhes do item</SheetTitle>
-            <p className="text-xs text-muted-foreground">Visualize as informações e edite o que precisar.</p>
+            <p className="text-xs text-muted-foreground">Informações consolidadas. Toque em qualquer área para editar.</p>
           </SheetHeader>
           <div className="mx-auto max-w-3xl space-y-4 py-4">
             {editingItem && (
-              <div className="relative h-36 overflow-hidden rounded-xl border border-border bg-gradient-to-br from-primary/15 via-secondary to-accent/10 sm:aspect-[16/7] sm:h-auto sm:min-h-52">
+              <div
+                className="group relative h-36 cursor-pointer overflow-hidden rounded-xl border border-border bg-gradient-to-br from-primary/15 via-secondary to-accent/10 ring-offset-background transition hover:ring-2 hover:ring-primary/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:aspect-[16/7] sm:h-auto sm:min-h-52"
+                role="button"
+                tabIndex={0}
+                aria-label="Editar imagem e informações do item"
+                onClick={() => setIsEditingItemDetails(true)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") setIsEditingItemDetails(true);
+                }}
+              >
                 {editingItem.imagem_url ? (
                   <img src={editingItem.imagem_url} alt={editingItem.nome} className="h-full w-full object-cover sm:object-contain" />
                 ) : (
@@ -1404,68 +1420,141 @@ export default function Estoque() {
                   </div>
                   {editingItem.compra_url && (
                     <Button asChild size="sm" className="flex-shrink-0 bg-white text-foreground hover:bg-white/90">
-                      <a href={editingItem.compra_url} target="_blank" rel="noreferrer">
+                      <a href={editingItem.compra_url} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>
                         <ShoppingCart className="mr-1.5 h-3.5 w-3.5" /> Comprar / repor <ExternalLink className="ml-1.5 h-3 w-3" />
                       </a>
                     </Button>
                   )}
                 </div>
+                <div className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[9px] font-semibold text-white opacity-100 backdrop-blur-sm transition sm:opacity-0 sm:group-hover:opacity-100">
+                  <Pencil className="h-2.5 w-2.5" /> Editar imagem
+                </div>
               </div>
             )}
-            <div className="rounded-xl border border-border bg-card p-3 sm:p-4 space-y-3">
-            <div className="space-y-1.5"><Label className="text-xs">Nome</Label><Input value={editForm.nome} onChange={e => setEditForm(p => ({ ...p, nome: e.target.value }))} /></div>
-            <ImageInput file={editImage} onChange={setEditImage} currentUrl={editingItem?.imagem_url} />
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs">Categoria</Label>
-                <Select value={editForm.categoria} onValueChange={v => setEditForm(p => ({ ...p, categoria: v }))}>
-                  <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>{CATEGORIAS.map(c => (<SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>))}</SelectContent>
-                </Select>
+            {isEditingItemDetails ? (
+              <div className="space-y-3 rounded-xl border border-primary/20 bg-card p-3 shadow-sm sm:p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-display text-sm font-bold text-foreground">Editar informações</p>
+                    <p className="text-[10px] text-muted-foreground">Altere somente o que precisar.</p>
+                  </div>
+                  <Badge className="border-0 bg-primary/10 text-[9px] text-primary hover:bg-primary/10"><Pencil className="mr-1 h-2.5 w-2.5" /> Modo edição</Badge>
+                </div>
+                <div className="space-y-1.5"><Label className="text-xs">Nome</Label><Input value={editForm.nome} onChange={e => setEditForm(p => ({ ...p, nome: e.target.value }))} /></div>
+                <ImageInput file={editImage} onChange={setEditImage} currentUrl={editingItem?.imagem_url} />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Categoria</Label>
+                    <Select value={editForm.categoria} onValueChange={v => setEditForm(p => ({ ...p, categoria: v }))}>
+                      <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>{CATEGORIAS.map(c => (<SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>))}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Unidade</Label>
+                    <Select value={editForm.unidade} onValueChange={v => setEditForm(p => ({ ...p, unidade: v }))}>
+                      <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unidade" className="text-xs">Unidade</SelectItem>
+                        <SelectItem value="pacote" className="text-xs">Pacote</SelectItem>
+                        <SelectItem value="caixa" className="text-xs">Caixa</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5"><Label className="text-xs">Saldo</Label><Input type="number" min={0} value={editForm.saldo_atual} onChange={e => setEditForm(p => ({ ...p, saldo_atual: Number(e.target.value) }))} /></div>
+                  <div className="space-y-1.5"><Label className="text-xs">Mínimo</Label><Input type="number" min={0} value={editForm.minimo} onChange={e => setEditForm(p => ({ ...p, minimo: Number(e.target.value) }))} /></div>
+                  <div className="space-y-1.5"><Label className="text-xs">Ideal</Label><Input type="number" min={0} value={editForm.ideal} onChange={e => setEditForm(p => ({ ...p, ideal: Number(e.target.value) }))} /></div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5"><Label className="text-xs">Custo unit. (R$)</Label><Input type="number" min={0} step={0.01} value={editForm.custo_unitario} onChange={e => setEditForm(p => ({ ...p, custo_unitario: Number(e.target.value) }))} /></div>
+                  <div className="space-y-1.5"><Label className="text-xs">Fornecedor</Label><Input value={editForm.fornecedor} onChange={e => setEditForm(p => ({ ...p, fornecedor: e.target.value }))} /></div>
+                </div>
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs">Link para compra ou reposição</Label>
+                    {normalizePurchaseUrl(editForm.compra_url) && (
+                      <a href={normalizePurchaseUrl(editForm.compra_url)!} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary hover:underline">
+                        Testar link <ExternalLink className="h-3 w-3" />
+                      </a>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <Link2 className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                    <Input type="url" inputMode="url" placeholder="https://loja.com/produto" value={editForm.compra_url} onChange={e => setEditForm(p => ({ ...p, compra_url: e.target.value }))} className="pl-9" />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs">Unidade</Label>
-                <Select value={editForm.unidade} onValueChange={v => setEditForm(p => ({ ...p, unidade: v }))}>
-                  <SelectTrigger className="text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unidade" className="text-xs">Unidade</SelectItem>
-                    <SelectItem value="pacote" className="text-xs">Pacote</SelectItem>
-                    <SelectItem value="caixa" className="text-xs">Caixa</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5"><Label className="text-xs">Saldo</Label><Input type="number" min={0} value={editForm.saldo_atual} onChange={e => setEditForm(p => ({ ...p, saldo_atual: Number(e.target.value) }))} /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Mínimo</Label><Input type="number" min={0} value={editForm.minimo} onChange={e => setEditForm(p => ({ ...p, minimo: Number(e.target.value) }))} /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Ideal</Label><Input type="number" min={0} value={editForm.ideal} onChange={e => setEditForm(p => ({ ...p, ideal: Number(e.target.value) }))} /></div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5"><Label className="text-xs">Custo unit. (R$)</Label><Input type="number" min={0} step={0.01} value={editForm.custo_unitario} onChange={e => setEditForm(p => ({ ...p, custo_unitario: Number(e.target.value) }))} /></div>
-              <div className="space-y-1.5"><Label className="text-xs">Fornecedor</Label><Input value={editForm.fornecedor} onChange={e => setEditForm(p => ({ ...p, fornecedor: e.target.value }))} /></div>
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <Label className="text-xs">Link para compra ou reposição</Label>
-                {normalizePurchaseUrl(editForm.compra_url) && (
-                  <a href={normalizePurchaseUrl(editForm.compra_url)!} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary hover:underline">
-                    Testar link <ExternalLink className="h-3 w-3" />
-                  </a>
-                )}
-              </div>
-              <div className="relative">
-                <Link2 className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <Input type="url" inputMode="url" placeholder="https://loja.com/produto" value={editForm.compra_url} onChange={e => setEditForm(p => ({ ...p, compra_url: e.target.value }))} className="pl-9" />
-              </div>
-            </div>
-            </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsEditingItemDetails(true)}
+                className="group w-full rounded-xl border border-border bg-card p-3 text-left shadow-sm transition hover:border-primary/30 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-4"
+                aria-label="Editar informações consolidadas do item"
+              >
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">Ficha do produto</p>
+                    <h3 className="mt-1 line-clamp-2 font-display text-base font-bold leading-tight text-foreground">{editForm.nome}</h3>
+                  </div>
+                  <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[9px] font-semibold text-primary">
+                    <Pencil className="h-2.5 w-2.5" /> Toque para editar
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  <div className="rounded-lg bg-emerald-50 p-2.5 dark:bg-emerald-950/25">
+                    <p className="text-[8px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">Categoria</p>
+                    <p className="mt-1 truncate text-xs font-bold text-emerald-950 dark:text-emerald-50">{editForm.categoria}</p>
+                  </div>
+                  <div className="rounded-lg bg-sky-50 p-2.5 dark:bg-sky-950/25">
+                    <p className="text-[8px] font-bold uppercase tracking-wider text-sky-700 dark:text-sky-300">Unidade</p>
+                    <p className="mt-1 truncate text-xs font-bold capitalize text-sky-950 dark:text-sky-50">{editForm.unidade}</p>
+                  </div>
+                  <div className="rounded-lg bg-amber-50 p-2.5 dark:bg-amber-950/25">
+                    <p className="text-[8px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">Fornecedor</p>
+                    <p className="mt-1 truncate text-xs font-bold text-amber-950 dark:text-amber-50">{editForm.fornecedor || "Não informado"}</p>
+                  </div>
+                  <div className="rounded-lg bg-violet-50 p-2.5 dark:bg-violet-950/25">
+                    <p className="text-[8px] font-bold uppercase tracking-wider text-violet-700 dark:text-violet-300">Custo unitário</p>
+                    <p className="mt-1 text-xs font-bold text-violet-950 dark:text-violet-50">R$ {editForm.custo_unitario.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>
+                  </div>
+                </div>
+                <div className="mt-2 grid grid-cols-3 overflow-hidden rounded-lg border border-border/70 bg-muted/25">
+                  <div className="p-2.5 text-center">
+                    <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">Disponível</p>
+                    <p className="mt-0.5 font-display text-lg font-bold text-primary">{editForm.saldo_atual}</p>
+                  </div>
+                  <div className="border-x border-border/70 p-2.5 text-center">
+                    <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">Mínimo</p>
+                    <p className="mt-0.5 font-display text-lg font-bold text-foreground">{editForm.minimo}</p>
+                  </div>
+                  <div className="p-2.5 text-center">
+                    <p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">Estoque ideal</p>
+                    <p className="mt-0.5 font-display text-lg font-bold text-foreground">{editForm.ideal}</p>
+                  </div>
+                </div>
+                <div className="mt-2 flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2">
+                  <Link2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1 truncate text-[10px] font-medium text-muted-foreground">{editForm.compra_url || "Nenhum link de compra cadastrado"}</span>
+                  <Pencil className="h-3 w-3 shrink-0 text-muted-foreground transition group-hover:text-primary" />
+                </div>
+              </button>
+            )}
             {editingItem && (
               <EstoqueDocumentosManager itemId={editingItem.id} onChange={fetchAll} />
             )}
           </div>
           <SheetFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEditingItem(null)} className="flex-1">Fechar</Button>
-            <Button onClick={handleSaveEdit} className="flex-1"><Check className="mr-1.5 h-3.5 w-3.5" /> Salvar alterações</Button>
+            <Button variant="outline" onClick={() => {
+              if (isEditingItemDetails) setIsEditingItemDetails(false);
+              else setEditingItem(null);
+            }} className="flex-1">{isEditingItemDetails ? "Cancelar edição" : "Fechar"}</Button>
+            {isEditingItemDetails ? (
+              <Button onClick={handleSaveEdit} className="flex-1"><Check className="mr-1.5 h-3.5 w-3.5" /> Salvar alterações</Button>
+            ) : (
+              <Button onClick={() => setIsEditingItemDetails(true)} className="flex-1"><Pencil className="mr-1.5 h-3.5 w-3.5" /> Editar informações</Button>
+            )}
           </SheetFooter>
         </SheetContent>
       </Sheet>
