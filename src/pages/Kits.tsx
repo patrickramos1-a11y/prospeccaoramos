@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
   Gift, Plus, Package, CheckCircle, AlertCircle, Layers, Trash2, X,
-  Pencil, AlertTriangle, Check as CheckIcon, Eye, MoreHorizontal, Upload, ImageIcon
+  Pencil, AlertTriangle, Check as CheckIcon, Eye, MoreHorizontal, Upload, ImageIcon,
+  ClipboardList, Send
 } from "lucide-react";
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetFooter,
@@ -91,6 +92,11 @@ export default function Kits() {
   const [showMontarLote, setShowMontarLote] = useState(false);
   const [showAddItem, setShowAddItem] = useState(false);
   const [editingKit, setEditingKit] = useState<Kit | null>(null);
+  const [isEditingKitDetails, setIsEditingKitDetails] = useState(false);
+  const [requestingKit, setRequestingKit] = useState<Kit | null>(null);
+  const [kitRequestType, setKitRequestType] = useState<"montagem" | "reposicao">("montagem");
+  const [kitRequestQtd, setKitRequestQtd] = useState(1);
+  const [kitRequestNotes, setKitRequestNotes] = useState("");
   const [selectedKitId, setSelectedKitId] = useState<string | null>(null);
   const [addItemKitId, setAddItemKitId] = useState<string | null>(null);
 
@@ -316,7 +322,47 @@ export default function Kits() {
   const openEditKit = (kit: Kit) => {
     setEditForm({ nome: kit.nome, tipo: kit.tipo, descricao: getCleanKitDescription(kit.descricao) });
     setEditKitImage(null);
+    setIsEditingKitDetails(true);
     setEditingKit(kit);
+  };
+
+  const openKitDetails = (kit: Kit) => {
+    setEditForm({ nome: kit.nome, tipo: kit.tipo, descricao: getCleanKitDescription(kit.descricao) });
+    setEditKitImage(null);
+    setIsEditingKitDetails(false);
+    setEditingKit(kit);
+  };
+
+  const openKitRequest = (kit: Kit, type: "montagem" | "reposicao") => {
+    setEditingKit(null);
+    setRequestingKit(kit);
+    setKitRequestType(type);
+    setKitRequestQtd(1);
+    setKitRequestNotes("");
+  };
+
+  const handleCreateKitRequest = async () => {
+    if (!requestingKit || kitRequestQtd <= 0) return;
+    const action = kitRequestType === "montagem" ? "Montar" : "Repor";
+    const { error } = await supabase.from("estoque_solicitacoes").insert({
+      finalidade: "reposicao",
+      alvo_tipo: "livre",
+      item_id: null,
+      pack_id: null,
+      titulo: `[KIT] ${action} ${requestingKit.nome}`,
+      quantidade: kitRequestQtd,
+      unidade: "kit",
+      observacao: [
+        kitRequestType === "montagem" ? "Solicitação de montagem de kit." : "Solicitação para aumentar a disponibilidade do kit.",
+        kitRequestNotes.trim(),
+      ].filter(Boolean).join(" "),
+    });
+    if (error) {
+      toast({ title: "Erro ao registrar solicitação", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Solicitação registrada", description: `${kitRequestQtd}x “${requestingKit.nome}” aguardando atendimento.` });
+    setRequestingKit(null);
   };
 
   const handleSaveEdit = async () => {
@@ -338,6 +384,10 @@ export default function Kits() {
   const totalDisponiveis = kits.reduce((a, k) => a + k.disponiveis, 0);
   const totalUsados = kits.reduce((a, k) => a + k.usados, 0);
   const kitsMontaveis = kits.filter(k => getKitAvailability(k.id).canBuild).length;
+  const detailKitItems = editingKit ? getKitItens(editingKit.id) : [];
+  const detailKitAvailability = editingKit ? getKitAvailability(editingKit.id) : null;
+  const detailKitCover = editingKit ? getKitCover(editingKit) : null;
+  const detailKitCost = editingKit ? calcCusto(detailKitItems) : 0;
 
   if (loading) {
     return (
@@ -396,7 +446,7 @@ export default function Kits() {
 
           return (
             <article key={kit.id} className={cn("group flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg sm:rounded-xl", availability.canBuild ? "border-status-visited/40" : "border-border")}>
-              <button type="button" onClick={() => openEditKit(kit)} className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset sm:aspect-[4/3]" aria-label={`Visualizar e editar ${kit.nome}`}>
+              <button type="button" onClick={() => openKitDetails(kit)} className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset sm:aspect-[4/3]" aria-label={`Visualizar ${kit.nome}`}>
                 {cover ? (
                   <img src={cover.url} alt={`Imagem de ${kit.nome}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
                 ) : (
@@ -410,7 +460,7 @@ export default function Kits() {
                 {cover && <div className="absolute inset-x-0 bottom-0 hidden bg-gradient-to-t from-black/80 to-transparent px-3 pb-3 pt-10 text-[9px] text-white/85 sm:block">Imagem vinculada: <span className="font-semibold text-white">{cover.label}</span></div>}
               </button>
 
-              <button type="button" onClick={() => openEditKit(kit)} className="flex flex-1 flex-col p-1.5 text-left sm:hidden" aria-label={`Abrir detalhes de ${kit.nome}`}>
+              <button type="button" onClick={() => openKitDetails(kit)} className="flex flex-1 flex-col p-1.5 text-left sm:hidden" aria-label={`Abrir detalhes de ${kit.nome}`}>
                 <h3 className="line-clamp-2 min-h-7 font-display text-[9px] font-bold leading-tight text-foreground">{kit.nome}</h3>
                 <div className="mt-auto flex items-end justify-between gap-1 pt-1">
                   <span className={cn("text-xs font-bold", kit.disponiveis > 0 ? "text-primary" : "text-muted-foreground")}>{kit.disponiveis}<span className="ml-0.5 text-[7px] font-medium">disp.</span></span>
@@ -697,32 +747,140 @@ export default function Kits() {
         </SheetContent>
       </Sheet>
 
-      {/* Sheet: Editar Kit */}
-      <Sheet open={!!editingKit} onOpenChange={(open) => !open && setEditingKit(null)}>
-        <SheetContent side="bottom" className="max-h-[90vh] overflow-y-auto rounded-t-lg bg-background">
-          <SheetHeader><SheetTitle className="font-display text-lg">Editar Kit</SheetTitle></SheetHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2"><Label className="text-xs">Nome</Label><Input value={editForm.nome} onChange={e => setEditForm(p => ({ ...p, nome: e.target.value }))} /></div>
-            <div className="space-y-2"><Label className="text-xs">Tipo / Público</Label><Input value={editForm.tipo} onChange={e => setEditForm(p => ({ ...p, tipo: e.target.value }))} /></div>
-            <div className="space-y-2"><Label className="text-xs">Descrição</Label><Textarea value={editForm.descricao} onChange={e => setEditForm(p => ({ ...p, descricao: e.target.value }))} rows={2} /></div>
-            <div className="space-y-2">
-              <Label className="text-xs">Imagem do catálogo</Label>
-              {editingKit && getKitCover(editingKit) && (
-                <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-2">
-                  <img src={editKitImage ? URL.createObjectURL(editKitImage) : getKitCover(editingKit)!.url} alt="Prévia do kit" className="h-14 w-20 rounded-md object-cover" />
-                  <div className="min-w-0"><p className="text-xs font-medium">Imagem atual</p><p className="truncate text-[10px] text-muted-foreground">{editKitImage?.name || getKitCover(editingKit)!.label}</p></div>
+      {/* Sheet: Detalhes e edição do Kit */}
+      <Sheet open={!!editingKit} onOpenChange={(open) => {
+        if (!open) {
+          setEditingKit(null);
+          setIsEditingKitDetails(false);
+        }
+      }}>
+        <SheetContent side="bottom" className="h-[92vh] overflow-y-auto rounded-t-xl bg-background">
+          <SheetHeader>
+            <SheetTitle className="font-display text-lg">{isEditingKitDetails ? "Editar kit" : "Detalhes do kit"}</SheetTitle>
+            <p className="text-xs text-muted-foreground">{isEditingKitDetails ? "Altere somente as informações necessárias." : "Visão consolidada da composição, disponibilidade e próximas ações."}</p>
+          </SheetHeader>
+
+          {editingKit && (
+            <div className="mx-auto max-w-3xl space-y-3 py-4">
+              {isEditingKitDetails ? (
+                <div className="space-y-4 rounded-xl border border-primary/20 bg-card p-3 shadow-sm sm:p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div><p className="font-display text-sm font-bold">Informações do kit</p><p className="text-[10px] text-muted-foreground">Nome, público, descrição e imagem.</p></div>
+                    <Badge className="border-0 bg-primary/10 text-[9px] text-primary hover:bg-primary/10"><Pencil className="mr-1 h-2.5 w-2.5" /> Modo edição</Badge>
+                  </div>
+                  <div className="space-y-2"><Label className="text-xs">Nome</Label><Input value={editForm.nome} onChange={e => setEditForm(p => ({ ...p, nome: e.target.value }))} /></div>
+                  <div className="space-y-2"><Label className="text-xs">Tipo / Público</Label><Input value={editForm.tipo} onChange={e => setEditForm(p => ({ ...p, tipo: e.target.value }))} /></div>
+                  <div className="space-y-2"><Label className="text-xs">Descrição</Label><Textarea value={editForm.descricao} onChange={e => setEditForm(p => ({ ...p, descricao: e.target.value }))} rows={2} /></div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Imagem do catálogo</Label>
+                    {detailKitCover && (
+                      <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-2">
+                        <img src={editKitImage ? URL.createObjectURL(editKitImage) : detailKitCover.url} alt="Prévia do kit" className="h-14 w-20 rounded-md object-cover" />
+                        <div className="min-w-0"><p className="text-xs font-medium">Imagem atual</p><p className="truncate text-[10px] text-muted-foreground">{editKitImage?.name || detailKitCover.label}</p></div>
+                      </div>
+                    )}
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 py-3 text-xs text-muted-foreground transition-colors hover:bg-muted/50">
+                      <ImageIcon className="h-3.5 w-3.5" /> {editKitImage ? "Trocar arquivo selecionado" : "Adicionar ou trocar imagem"}
+                      <input type="file" accept="image/*" className="hidden" onChange={(event) => setEditKitImage(event.target.files?.[0] || null)} />
+                    </label>
+                    <p className="text-[10px] text-muted-foreground">Sem uma imagem própria, a imagem do primeiro item continua sendo usada como referência.</p>
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <button type="button" onClick={() => setIsEditingKitDetails(true)} className="group relative block h-40 w-full overflow-hidden rounded-xl border border-border bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left shadow-sm ring-offset-background transition hover:ring-2 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:h-56" aria-label="Editar imagem e informações do kit">
+                    {detailKitCover ? (
+                      <img src={detailKitCover.url} alt={editingKit.nome} className="h-full w-full object-cover sm:object-contain" />
+                    ) : (
+                      <div className="flex h-full flex-col items-center justify-center text-primary/35"><Gift className="h-12 w-12" strokeWidth={1.25} /><span className="mt-2 text-[9px] font-semibold uppercase tracking-[0.16em]">Kit sem imagem</span></div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/10 to-transparent" />
+                    <div className="absolute inset-x-0 bottom-0 p-3 text-white sm:p-4">
+                      <Badge className="mb-1 border-white/25 bg-white/90 px-1.5 text-[8px] text-foreground hover:bg-white sm:text-[9px]">{editingKit.tipo}</Badge>
+                      <h3 className="line-clamp-2 font-display text-base font-bold leading-tight sm:text-xl">{editingKit.nome}</h3>
+                      <p className="mt-1 line-clamp-1 text-[9px] text-white/75 sm:text-[10px]">{getCleanKitDescription(editingKit.descricao) || "Modelo de kit cadastrado"}</p>
+                    </div>
+                    <span className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-black/55 px-2 py-1 text-[9px] font-semibold text-white backdrop-blur-sm"><Pencil className="h-2.5 w-2.5" /> Editar</span>
+                  </button>
+
+                  <button type="button" onClick={() => setIsEditingKitDetails(true)} className="w-full rounded-xl border border-border bg-card p-3 text-left shadow-sm transition hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:p-4" aria-label="Editar informações consolidadas do kit">
+                    <div className="mb-3 flex items-start justify-between gap-3">
+                      <div><p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">Painel do kit</p><p className="mt-1 text-xs font-medium text-muted-foreground">Clique para editar as informações</p></div>
+                      <span className={cn("rounded-full px-2 py-1 text-[9px] font-bold", detailKitAvailability?.canBuild ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700")}>{detailKitAvailability?.canBuild ? `Pode montar ${detailKitAvailability.maxBuildable}` : "Reposição necessária"}</span>
+                    </div>
+                    <div className="grid grid-cols-4 overflow-hidden rounded-lg border border-border/70 bg-muted/25 text-center">
+                      <div className="p-2"><p className="text-[7px] font-bold uppercase tracking-wider text-muted-foreground">Montados</p><p className="mt-1 font-display text-base font-bold text-foreground">{editingKit.montados}</p></div>
+                      <div className="border-l border-border/70 p-2"><p className="text-[7px] font-bold uppercase tracking-wider text-muted-foreground">Disponíveis</p><p className="mt-1 font-display text-base font-bold text-primary">{editingKit.disponiveis}</p></div>
+                      <div className="border-l border-border/70 p-2"><p className="text-[7px] font-bold uppercase tracking-wider text-muted-foreground">Utilizados</p><p className="mt-1 font-display text-base font-bold text-foreground">{editingKit.usados}</p></div>
+                      <div className="border-l border-border/70 p-2"><p className="text-[7px] font-bold uppercase tracking-wider text-muted-foreground">Custo</p><p className="mt-1 text-[10px] font-bold text-foreground">R$ {detailKitCost.toFixed(2)}</p></div>
+                    </div>
+                  </button>
+
+                  <div className="rounded-xl border border-border bg-card p-3 shadow-sm sm:p-4">
+                    <div className="flex items-center justify-between gap-3"><div><p className="font-display text-sm font-bold">Composição</p><p className="text-[9px] text-muted-foreground">{detailKitItems.length} {detailKitItems.length === 1 ? "componente" : "componentes"} por kit</p></div><Package className="h-4 w-4 text-primary" /></div>
+                    <div className="mt-3 space-y-1.5">
+                      {detailKitItems.map((component) => (
+                        <div key={component.id} className="flex items-center gap-2 rounded-lg bg-muted/40 px-2.5 py-2 text-xs">
+                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/60" />
+                          <span className="min-w-0 flex-1 truncate font-medium">{getItemName(component.item_id)}</span>
+                          <span className="text-[10px] font-bold text-primary">×{component.quantidade}</span>
+                          <span className="text-[9px] text-muted-foreground">R$ {(getItemCusto(component.item_id) * component.quantidade).toFixed(2)}</span>
+                        </div>
+                      ))}
+                      {detailKitItems.length === 0 && <p className="rounded-lg border border-dashed border-border py-4 text-center text-[10px] text-muted-foreground">Nenhum componente vinculado.</p>}
+                    </div>
+                  </div>
+
+                  {detailKitAvailability && detailKitAvailability.faltas.length > 0 && (
+                    <div className="rounded-xl border border-destructive/20 bg-destructive/5 p-3">
+                      <p className="flex items-center gap-1.5 text-[10px] font-bold text-destructive"><AlertTriangle className="h-3.5 w-3.5" /> Itens que precisam de reposição</p>
+                      <div className="mt-2 space-y-1">{detailKitAvailability.faltas.map((item, index) => <div key={`${item.nome}-${index}`} className="flex justify-between gap-3 text-[10px]"><span className="truncate text-foreground">{item.nome}</span><span className="shrink-0 font-semibold text-destructive">{item.disponivel}/{item.necessario}</span></div>)}</div>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button type="button" onClick={() => { setSelectedKitId(editingKit.id); setLoteQtd(1); setEditingKit(null); setShowMontarLote(true); }} disabled={!detailKitAvailability?.canBuild}><Layers className="mr-1.5 h-3.5 w-3.5" /> Montar agora</Button>
+                    <Button type="button" variant="outline" onClick={() => openKitRequest(editingKit, "montagem")}><ClipboardList className="mr-1.5 h-3.5 w-3.5" /> Solicitar montagem</Button>
+                    <Button type="button" variant="outline" className="col-span-2" onClick={() => openKitRequest(editingKit, "reposicao")}><Send className="mr-1.5 h-3.5 w-3.5" /> Solicitar mais kits</Button>
+                  </div>
+                </>
               )}
-              <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-border px-3 py-3 text-xs text-muted-foreground transition-colors hover:bg-muted/50">
-                <ImageIcon className="h-3.5 w-3.5" /> {editKitImage ? "Trocar arquivo selecionado" : "Adicionar ou trocar imagem"}
-                <input type="file" accept="image/*" className="hidden" onChange={(event) => setEditKitImage(event.target.files?.[0] || null)} />
-              </label>
-              <p className="text-[10px] text-muted-foreground">Se nenhuma imagem própria for enviada, a imagem do primeiro item continua sendo usada como referência.</p>
             </div>
+          )}
+
+          <SheetFooter className="gap-2">
+            <Button variant="outline" onClick={() => {
+              if (isEditingKitDetails) setIsEditingKitDetails(false);
+              else setEditingKit(null);
+            }} className="flex-1">{isEditingKitDetails ? "Cancelar edição" : "Fechar"}</Button>
+            {isEditingKitDetails ? (
+              <Button onClick={handleSaveEdit} className="flex-1"><CheckIcon className="mr-1.5 h-3.5 w-3.5" /> Salvar alterações</Button>
+            ) : (
+              <Button onClick={() => setIsEditingKitDetails(true)} className="flex-1"><Pencil className="mr-1.5 h-3.5 w-3.5" /> Editar informações</Button>
+            )}
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+
+      {/* Sheet: Solicitar montagem ou reposição do Kit */}
+      <Sheet open={!!requestingKit} onOpenChange={(open) => !open && setRequestingKit(null)}>
+        <SheetContent side="bottom" className="rounded-t-xl bg-background">
+          <SheetHeader>
+            <SheetTitle className="font-display text-lg">{kitRequestType === "montagem" ? "Solicitar montagem" : "Solicitar mais kits"}</SheetTitle>
+            <p className="text-xs text-muted-foreground">{requestingKit?.nome}</p>
+          </SheetHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/40 p-3 text-center">
+              <div><p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">Disponíveis</p><p className="mt-1 font-display text-lg font-bold text-primary">{requestingKit?.disponiveis || 0}</p></div>
+              <div><p className="text-[8px] font-bold uppercase tracking-wider text-muted-foreground">Montados</p><p className="mt-1 font-display text-lg font-bold">{requestingKit?.montados || 0}</p></div>
+            </div>
+            <div className="space-y-2"><Label className="text-xs">Quantidade solicitada</Label><Input type="number" min={1} value={kitRequestQtd} onChange={(event) => setKitRequestQtd(Math.max(1, Number(event.target.value)))} /></div>
+            <div className="space-y-2"><Label className="text-xs">Contexto ou observação</Label><Textarea rows={3} placeholder="Prazo, destino, motivo ou orientações para a montagem" value={kitRequestNotes} onChange={(event) => setKitRequestNotes(event.target.value)} /></div>
+            <div className="flex items-center justify-between rounded-lg bg-primary/5 px-3 py-2 text-xs"><span className="text-muted-foreground">Custo estimado</span><strong className="text-primary">R$ {(requestingKit ? calcCusto(getKitItens(requestingKit.id)) * kitRequestQtd : 0).toFixed(2)}</strong></div>
           </div>
           <SheetFooter className="gap-2">
-            <Button variant="outline" onClick={() => setEditingKit(null)} className="flex-1">Cancelar</Button>
-            <Button onClick={handleSaveEdit} className="flex-1">Salvar</Button>
+            <Button variant="outline" onClick={() => setRequestingKit(null)} className="flex-1">Cancelar</Button>
+            <Button onClick={handleCreateKitRequest} className="flex-1"><ClipboardList className="mr-1.5 h-3.5 w-3.5" /> Registrar solicitação</Button>
           </SheetFooter>
         </SheetContent>
       </Sheet>
