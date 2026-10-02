@@ -366,27 +366,27 @@ export default function Kits() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 gap-2 xl:grid-cols-4">
         {[
           { label: "Modelos", value: kits.length, icon: Gift, color: "text-primary bg-primary/10" },
           { label: "Montáveis", value: kitsMontaveis, icon: CheckCircle, color: kitsMontaveis > 0 ? "text-status-visited bg-status-visited/10" : "text-muted-foreground bg-muted" },
           { label: "Disponíveis", value: totalDisponiveis, icon: Package, color: "text-accent-foreground bg-accent/10" },
           { label: "Utilizados", value: totalUsados, icon: Layers, color: "text-status-planned bg-status-planned/10" },
         ].map((stat) => (
-          <div key={stat.label} className="metric-card flex items-center gap-2.5 p-3 rounded-lg">
-            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 kpi-icon", stat.color)}>
-              <stat.icon className="w-4 h-4" />
+          <div key={stat.label} className="metric-card flex items-center gap-2 rounded-lg p-2 sm:gap-2.5 sm:p-3">
+            <div className={cn("kpi-icon flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg sm:h-8 sm:w-8", stat.color)}>
+              <stat.icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             </div>
             <div>
-              <p className="font-display font-bold text-lg text-foreground leading-none">{stat.value}</p>
-              <p className="text-[10px] text-muted-foreground mt-0.5">{stat.label}</p>
+              <p className="font-display text-base font-bold leading-none text-foreground sm:text-lg">{stat.value}</p>
+              <p className="mt-0.5 text-[9px] text-muted-foreground sm:text-[10px]">{stat.label}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* Marketplace de kits */}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+      <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-[repeat(auto-fill,minmax(260px,1fr))] sm:gap-3">
         {kits.map((kit) => {
           const items = getKitItens(kit.id);
           const custoEstimado = calcCusto(items);
@@ -395,22 +395,30 @@ export default function Kits() {
           const cover = getKitCover(kit);
 
           return (
-            <article key={kit.id} className={cn("group flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg", availability.canBuild ? "border-status-visited/40" : "border-border")}>
-              <button type="button" onClick={() => setExpandedKitId(isExpanded ? null : kit.id)} className="relative aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset">
+            <article key={kit.id} className={cn("group flex min-w-0 flex-col overflow-hidden rounded-lg border bg-card shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-lg sm:rounded-xl", availability.canBuild ? "border-status-visited/40" : "border-border")}>
+              <button type="button" onClick={() => openEditKit(kit)} className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset sm:aspect-[4/3]" aria-label={`Visualizar e editar ${kit.nome}`}>
                 {cover ? (
                   <img src={cover.url} alt={`Imagem de ${kit.nome}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
                 ) : (
-                  <div className="flex h-full flex-col items-center justify-center text-primary/35"><Gift className="h-14 w-14" strokeWidth={1.25} /><span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em]">Kit sem imagem</span></div>
+                  <div className="flex h-full flex-col items-center justify-center text-primary/35"><Gift className="h-7 w-7 sm:h-14 sm:w-14" strokeWidth={1.25} /><span className="mt-1 text-[7px] font-semibold uppercase tracking-[0.12em] sm:mt-2 sm:text-[10px] sm:tracking-[0.18em]">Sem imagem</span></div>
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/5" />
-                <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
-                  <Badge className="border-white/25 bg-white/90 px-2 text-[9px] font-bold text-foreground shadow-sm hover:bg-white">{kit.tipo}</Badge>
-                  <Badge className={cn("border-0 px-2 text-[9px] font-bold shadow-sm", availability.canBuild ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground")}>{availability.canBuild ? `Monta ${availability.maxBuildable}x` : `${availability.faltas.length} faltando`}</Badge>
+                <div className="absolute left-1.5 right-1.5 top-1.5 flex items-start justify-between gap-1 sm:left-3 sm:right-3 sm:top-3 sm:gap-2">
+                  <Badge className="max-w-[55%] truncate border-white/25 bg-white/90 px-1 py-0 text-[7px] font-bold text-foreground shadow-sm hover:bg-white sm:max-w-full sm:px-2 sm:text-[9px]">{kit.tipo}</Badge>
+                  <Badge className={cn("border-0 px-1 py-0 text-[7px] font-bold shadow-sm sm:px-2 sm:text-[9px]", availability.canBuild ? "bg-primary text-primary-foreground" : "bg-destructive text-destructive-foreground")}>{availability.canBuild ? `Monta ${availability.maxBuildable}x` : `${availability.faltas.length} faltando`}</Badge>
                 </div>
-                {cover && <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-3 pb-3 pt-10 text-[9px] text-white/85">Imagem vinculada: <span className="font-semibold text-white">{cover.label}</span></div>}
+                {cover && <div className="absolute inset-x-0 bottom-0 hidden bg-gradient-to-t from-black/80 to-transparent px-3 pb-3 pt-10 text-[9px] text-white/85 sm:block">Imagem vinculada: <span className="font-semibold text-white">{cover.label}</span></div>}
               </button>
 
-              <div className="flex flex-1 flex-col p-3">
+              <button type="button" onClick={() => openEditKit(kit)} className="flex flex-1 flex-col p-1.5 text-left sm:hidden" aria-label={`Abrir detalhes de ${kit.nome}`}>
+                <h3 className="line-clamp-2 min-h-7 font-display text-[9px] font-bold leading-tight text-foreground">{kit.nome}</h3>
+                <div className="mt-auto flex items-end justify-between gap-1 pt-1">
+                  <span className={cn("text-xs font-bold", kit.disponiveis > 0 ? "text-primary" : "text-muted-foreground")}>{kit.disponiveis}<span className="ml-0.5 text-[7px] font-medium">disp.</span></span>
+                  <span className="text-[7px] font-semibold text-muted-foreground">{items.length} itens</span>
+                </div>
+              </button>
+
+              <div className="hidden flex-1 flex-col p-3 sm:flex">
                 <h3 className="line-clamp-2 min-h-9 font-display text-sm font-bold leading-[1.15] text-foreground">{kit.nome}</h3>
                 <p className="mt-1 line-clamp-2 min-h-7 text-[10px] leading-snug text-muted-foreground">{getCleanKitDescription(kit.descricao) || "Modelo pronto para organizar e montar materiais."}</p>
 

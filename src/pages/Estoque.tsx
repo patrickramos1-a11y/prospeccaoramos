@@ -1126,38 +1126,46 @@ export default function Estoque() {
               {filteredPacks.length} {filteredPacks.length === 1 ? "pack encontrado" : "packs encontrados"}
             </p>
           )}
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-3">
+          <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-[repeat(auto-fill,minmax(260px,1fr))] sm:gap-3">
             {filteredPacks.map((pack) => {
               const coverItem = getPackCoverItem(pack);
               const totalUnits = pack.itens.reduce((sum, packItem) => sum + packItem.quantidade, 0);
               const capacity = getPackCapacity(pack);
               const bag = getPackBag(pack);
               return (
-                <article key={pack.id} className="group flex min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg">
-                  <button type="button" onClick={() => openEditPack(pack)} className="relative block aspect-[4/3] w-full overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset" aria-label={`Visualizar e editar ${pack.nome}`}>
+                <article key={pack.id} className="group flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg sm:rounded-xl">
+                  <button type="button" onClick={() => openEditPack(pack)} className="relative block aspect-square w-full overflow-hidden bg-gradient-to-br from-primary/15 via-secondary to-accent/10 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset sm:aspect-[4/3]" aria-label={`Visualizar e editar ${pack.nome}`}>
                     {coverItem?.imagem_url ? (
                       <img src={coverItem.imagem_url} alt={`Imagem do item ${coverItem.nome}`} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]" />
                     ) : (
                       <div className="flex h-full w-full flex-col items-center justify-center text-primary/35">
-                        <Layers className="h-14 w-14" strokeWidth={1.25} />
-                        <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em]">Pack sem imagem</span>
+                        <Layers className="h-7 w-7 sm:h-14 sm:w-14" strokeWidth={1.25} />
+                        <span className="mt-1 text-[7px] font-semibold uppercase tracking-[0.12em] sm:mt-2 sm:text-[10px] sm:tracking-[0.18em]">Sem imagem</span>
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-black/5" />
-                    <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
-                      <Badge className="border-white/25 bg-white/90 px-2 text-[9px] font-bold text-foreground shadow-sm backdrop-blur-sm hover:bg-white">Pack</Badge>
-                      <Badge className="border-0 bg-primary/90 px-2 text-[9px] font-bold text-primary-foreground shadow-sm" variant="secondary">
+                    <div className="absolute left-1.5 right-1.5 top-1.5 flex items-start justify-between gap-1 sm:left-3 sm:right-3 sm:top-3 sm:gap-2">
+                      <Badge className="border-white/25 bg-white/90 px-1 py-0 text-[7px] font-bold text-foreground shadow-sm backdrop-blur-sm hover:bg-white sm:px-2 sm:text-[9px]">Pack</Badge>
+                      <Badge className="border-0 bg-primary/90 px-1 py-0 text-[7px] font-bold text-primary-foreground shadow-sm sm:px-2 sm:text-[9px]" variant="secondary">
                         {pack.itens.length} {pack.itens.length === 1 ? "item" : "itens"}
                       </Badge>
                     </div>
                     {coverItem && (
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-3 pb-3 pt-8 text-[9px] text-white/85">
+                      <div className="absolute inset-x-0 bottom-0 hidden bg-gradient-to-t from-black/75 to-transparent px-3 pb-3 pt-8 text-[9px] text-white/85 sm:block">
                         Imagem vinculada: <span className="font-semibold text-white">{coverItem.nome}</span>
                       </div>
                     )}
                   </button>
 
-                  <div className="flex flex-1 flex-col p-3">
+                  <button type="button" onClick={() => openEditPack(pack)} className="flex flex-1 flex-col p-1.5 text-left sm:hidden" aria-label={`Abrir detalhes de ${pack.nome}`}>
+                    <h3 className="line-clamp-2 min-h-7 font-display text-[9px] font-bold leading-tight text-foreground">{pack.nome}</h3>
+                    <div className="mt-auto flex items-end justify-between gap-1 pt-1">
+                      <span className={cn("text-xs font-bold", pack.saldo_atual > 0 ? "text-primary" : "text-destructive")}>{pack.saldo_atual}<span className="ml-0.5 text-[7px] font-medium">pronto(s)</span></span>
+                      <span className="text-[7px] font-semibold text-muted-foreground">+{capacity} monta</span>
+                    </div>
+                  </button>
+
+                  <div className="hidden flex-1 flex-col p-3 sm:flex">
                     <div>
                       <h3 className="line-clamp-2 min-h-9 font-display text-sm font-bold leading-[1.15] text-foreground">{pack.nome}</h3>
                       <p className="mt-1 line-clamp-2 min-h-7 text-[10px] leading-snug text-muted-foreground">{pack.descricao || "Conjunto de materiais vinculados"}</p>
