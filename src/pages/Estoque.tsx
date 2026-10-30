@@ -237,7 +237,9 @@ export default function Estoque() {
         workflow,
       } as Solicitacao;
     }));
-    if (packMovimentacoesRes.data) setPackMovimentacoes(packMovimentacoesRes.data);
+    if (packMovimentacoesRes.data) setPackMovimentacoes(
+      packMovimentacoesRes.data.filter((entry) => entry.tipo === "entrada" || entry.tipo === "saida") as PackMovimentacao[],
+    );
     setLoading(false);
   };
 

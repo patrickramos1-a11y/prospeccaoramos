@@ -396,7 +396,7 @@ export default function Financeiro() {
                   <YAxis dataKey="label" type="category" width={120} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />
                   <Tooltip
                     contentStyle={tooltipStyle}
-                    formatter={(v: number, _n, p: any) => [`${fmt(v)} (${p.payload.visitas} visita${p.payload.visitas > 1 ? "s" : ""})`, "Total"]}
+                    formatter={(v: number, _n, p) => [`${fmt(v)} (${p.payload.visitas} visita${p.payload.visitas > 1 ? "s" : ""})`, "Total"]}
                   />
                   <Bar dataKey="total" fill="hsl(155, 45%, 32%)" radius={[0, 4, 4, 0]} />
                 </BarChart>

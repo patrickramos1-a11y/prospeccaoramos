@@ -81,9 +81,9 @@ export default function Visitas() {
         orgIds.length ? supabase.from("orgaos").select("id, nome, sigla").in("id", orgIds) : Promise.resolve({ data: [], error: null }),
         respIds.length ? supabase.from("usuarios").select("id, nome, cor").in("id", respIds) : Promise.resolve({ data: [], error: null }),
       ]);
-      const munMap = new Map((muns.data ?? []).map((m: any) => [m.id, m]));
-      const orgMap = new Map((orgs.data ?? []).map((o: any) => [o.id, o]));
-      const respMap = new Map((resps.data ?? []).map((r: any) => [r.id, r]));
+      const munMap = new Map((muns.data ?? []).map((m) => [m.id, m] as const));
+      const orgMap = new Map((orgs.data ?? []).map((o) => [o.id, o] as const));
+      const respMap = new Map((resps.data ?? []).map((r) => [r.id, r] as const));
 
       return visitasRaw.map((v) => ({
         ...v,
@@ -118,7 +118,7 @@ export default function Visitas() {
       const ids = Array.from(new Set(items.map((i) => i.kit_id)));
       if (ids.length) {
         const { data: kdata } = await supabase.from("kits").select("id, nome").in("id", ids);
-        const kmap = new Map((kdata ?? []).map((k: any) => [k.id, k]));
+        const kmap = new Map((kdata ?? []).map((k) => [k.id, k] as const));
         return items.map((i) => ({ ...i, kit: kmap.get(i.kit_id) ?? null }));
       }
       return items;
@@ -134,7 +134,7 @@ export default function Visitas() {
       const { data: all } = await supabase
         .from("visita_checklist").select("id, feito").eq("visita_id", item.visita_id);
       const total = all?.length ?? 0;
-      const done = (all ?? []).filter((x: any) => x.id === item.id ? novo : x.feito).length;
+      const done = (all ?? []).filter((x) => x.id === item.id ? novo : x.feito).length;
       const pct = total ? Math.round((done / total) * 100) : 0;
       await supabase.from("visitas").update({ progresso: pct }).eq("id", item.visita_id);
     },
